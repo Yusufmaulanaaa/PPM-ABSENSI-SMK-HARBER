@@ -132,34 +132,38 @@ export default function DataSiswa() {
             <table className="ui-table">
               <thead>
                 <tr>
-                  <th>Foto</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Jenis Kelamin</th><th>No. HP Ortu</th><th>RFID</th><th className="text-center">Aksi</th>
+                  <th>Foto</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Wali Kelas</th><th>Jenis Kelamin</th><th>No. HP Ortu</th><th>RFID</th><th className="text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="table-empty">Tidak ada data siswa ditemukan.</td></tr>
+                  <tr><td colSpan={9} className="table-empty">Tidak ada data siswa ditemukan.</td></tr>
                 )}
-                {filtered.map((s) => (
-                  <tr key={s.id_siswa}>
-                    <td>
-                      {s.foto ? (
-                        <img className="avatar" src={`${UPLOADS_BASE_URL}/uploads/siswa/${s.foto}`} alt={s.nama_siswa} />
-                      ) : (
-                        <div className="avatar" />
-                      )}
-                    </td>
-                    <td>{s.nis}</td>
-                    <td>{s.nama_siswa}</td>
-                    <td>{s.kelas}</td>
-                    <td>{s.jenis_kelamin}</td>
-                    <td>{s.no_hp}</td>
-                    <td>{s.rfid_code || <span className="text-muted">—</span>}</td>
-                    <td className="text-center">
-                      <Button variant="outline" size="sm" onClick={() => openEditModal(s)}>Edit</Button>{' '}
-                      <Button variant="danger" size="sm" onClick={() => setDeleteTarget(s)}>Hapus</Button>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((s) => {
+                  const waliKelas = kelasList.find(k => String(k.id_kelas) === String(s.id_kelas))?.nama_wali_kelas;
+                  return (
+                    <tr key={s.id_siswa}>
+                      <td>
+                        {s.foto ? (
+                          <img className="avatar" src={`${UPLOADS_BASE_URL}/uploads/siswa/${s.foto}`} alt={s.nama_siswa} />
+                        ) : (
+                          <div className="avatar" />
+                        )}
+                      </td>
+                      <td>{s.nis}</td>
+                      <td>{s.nama_siswa}</td>
+                      <td>{s.kelas}</td>
+                      <td>{waliKelas || <span className="text-muted">—</span>}</td>
+                      <td>{s.jenis_kelamin}</td>
+                      <td>{s.no_hp}</td>
+                      <td>{s.rfid_code || <span className="text-muted">—</span>}</td>
+                      <td className="text-center">
+                        <Button variant="outline" size="sm" onClick={() => openEditModal(s)}>Edit</Button>{' '}
+                        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(s)}>Hapus</Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

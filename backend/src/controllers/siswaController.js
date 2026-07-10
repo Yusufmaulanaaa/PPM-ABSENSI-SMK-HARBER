@@ -6,7 +6,7 @@ import { uploadsRoot } from '../middleware/upload.js';
 
 const KELAS_JOIN = `
   SELECT s.*, k.tingkat, k.index_kelas, j.jurusan,
-    CONCAT(k.tingkat, ' ', j.jurusan, ' ', k.index_kelas) AS kelas
+    CONCAT(k.tingkat, ' ', j.jurusan, IF(k.index_kelas != '', CONCAT(' ', k.index_kelas), '')) AS kelas
   FROM tb_siswa s
   LEFT JOIN tb_kelas k ON k.id_kelas = s.id_kelas
   LEFT JOIN tb_jurusan j ON j.id = k.id_jurusan

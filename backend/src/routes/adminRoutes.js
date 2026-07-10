@@ -74,10 +74,10 @@ router.get('/qr/guru/download', requirePermission('qr.generate'), qrCtrl.downloa
 
 // ── Laporan ──
 router.post('/laporan/siswa', requirePermission('attendance.view'), laporanCtrl.generateLaporanSiswaData);
-router.post('/laporan/siswa/doc', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaDoc);
+router.post('/laporan/siswa/xlsx', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaExcel);
 router.post('/laporan/siswa/pdf', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaPdf);
 router.post('/laporan/guru', requirePermission('attendance.view'), laporanCtrl.generateLaporanGuruData);
-router.post('/laporan/guru/doc', requirePermission('attendance.view'), laporanCtrl.exportLaporanGuruDoc);
+router.post('/laporan/guru/xlsx', requirePermission('attendance.view'), laporanCtrl.exportLaporanGuruExcel);
 router.post('/laporan/guru/pdf', requirePermission('attendance.view'), laporanCtrl.exportLaporanGuruPdf);
 
 // ── Petugas ──

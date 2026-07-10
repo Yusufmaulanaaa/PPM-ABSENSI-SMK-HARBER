@@ -3,7 +3,7 @@ import pool from '../config/db.js';
 const KELAS_QUERY = `
   SELECT k.*, j.jurusan,
     g.nama_guru AS nama_wali_kelas,
-    CONCAT(k.tingkat, ' ', j.jurusan, ' ', k.index_kelas) AS nama_kelas,
+    CONCAT(k.tingkat, ' ', j.jurusan, IF(k.index_kelas != '', CONCAT(' ', k.index_kelas), '')) AS nama_kelas,
     (SELECT COUNT(*) FROM tb_siswa s WHERE s.id_kelas = k.id_kelas) AS jumlah_siswa
   FROM tb_kelas k
   LEFT JOIN tb_jurusan j ON j.id = k.id_jurusan

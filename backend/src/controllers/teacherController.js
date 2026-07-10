@@ -8,7 +8,7 @@ import {
 
 async function getKelasByWali(idGuru) {
   const [[kelas]] = await pool.query(
-    `SELECT k.*, j.jurusan, CONCAT(k.tingkat, ' ', j.jurusan, ' ', k.index_kelas) AS nama_kelas
+    `SELECT k.*, j.jurusan, CONCAT(k.tingkat, ' ', j.jurusan, IF(k.index_kelas != '', CONCAT(' ', k.index_kelas), '')) AS nama_kelas
      FROM tb_kelas k LEFT JOIN tb_jurusan j ON j.id = k.id_jurusan
      WHERE k.id_wali_kelas = ? LIMIT 1`,
     [idGuru]

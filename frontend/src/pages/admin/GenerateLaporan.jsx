@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { FileText, FileDown } from 'lucide-react';
+import { FileSpreadsheet, FileDown } from 'lucide-react';
 import api, { UPLOADS_BASE_URL } from '../../api/client';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
@@ -65,7 +65,7 @@ export default function GenerateLaporan() {
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `laporan-${tab}-${bulan}.${format === 'doc' ? 'doc' : 'pdf'}`;
+      a.download = `laporan-${tab}-${bulan}.${format === 'xlsx' ? 'xlsx' : 'pdf'}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err) {
@@ -81,7 +81,7 @@ export default function GenerateLaporan() {
     <div>
       <div className="page-header">
         <h2>Generate Laporan</h2>
-        <p>Buat rekap kehadiran bulanan siswa atau guru, lalu unduh sebagai PDF/Word.</p>
+        <p>Buat rekap kehadiran bulanan siswa atau guru, lalu unduh sebagai PDF/Excel.</p>
       </div>
 
       <div className="tab-bar">
@@ -115,7 +115,7 @@ export default function GenerateLaporan() {
           headerColor="azure"
           actions={
             <>
-              <Button variant="outline" loading={exporting} onClick={() => handleExport('doc')}><FileText size={15} style={{ marginRight: 6 }} />Export Word</Button>
+              <Button variant="outline" loading={exporting} onClick={() => handleExport('xlsx')}><FileSpreadsheet size={15} style={{ marginRight: 6 }} />Export Excel</Button>
               <Button variant="info" loading={exporting} onClick={() => handleExport('pdf')}><FileDown size={15} style={{ marginRight: 6 }} />Export PDF</Button>
             </>
           }

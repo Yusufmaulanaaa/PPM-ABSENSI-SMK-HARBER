@@ -8,30 +8,50 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Coba baca CA certificate untuk koneksi SSL (wajib untuk Aiven)
+// SSL config: always use SSL for non-localhost connections (Railway, Aiven, etc.)
 function getSSLConfig() {
-  try {
-    const caPath = path.join(process.cwd(), 'ca.pem');
-    if (fs.existsSync(caPath)) {
-      return { ca: fs.readFileSync(caPath) };
-    }
-  } catch {}
+  const host = process.env.DB_HOST || 'localhost';
+  
+  // Non-localhost connections require SSL
+  if (host !== 'localhost' && host !== '127.0.0.1') {
+    return { rejectUnauthorized: false };
+  }
   return undefined;
 }
 
-const ssl = getSSLConfig();
+let _pool = null;
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'db_absensi',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  dateStrings: true,
-  ssl: ssl,
+function getPool() {
+  if (!_pool) {
+    const ssl = getSSLConfig();
+    console.log('Creating pool - SSL:', ssl ? 'enabled' : 'disabled', 'Host:', process.env.DB_HOST);
+    
+    _pool = mysql.createPool({
+      host: process.env.DB_HOST || 'localhost',
+      port: Number(process.env.DB_PORT) || 3306,
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'db_absensi',
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      dateStrings: true,
+      ssl: ssl,
+    });
+  }
+  return _pool;
+}
+
+// Proxy agar controller tetap bisa panggil pool.query() langsung
+const pool = new Proxy({}, {
+  get(_, prop) {
+    const p = getPool();
+    const val = p[prop];
+    if (typeof val === 'function') {
+      return val.bind(p);
+    }
+    return val;
+  }
 });
 
 export default pool;
