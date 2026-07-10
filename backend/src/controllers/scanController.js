@@ -4,12 +4,12 @@ import { sendWhatsAppNotification } from '../utils/whatsapp.js';
 
 function nowTimeString() {
   const d = new Date();
-  return d.toTimeString().slice(0, 8); // HH:MM:SS
+  return d.toLocaleTimeString('sv-SE', { timeZone: 'Asia/Jakarta' }); // HH:MM:SS WIB
 }
 
 function todayDateString() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }); // YYYY-MM-DD WIB
 }
 
 async function findSiswaByCode(code) {
