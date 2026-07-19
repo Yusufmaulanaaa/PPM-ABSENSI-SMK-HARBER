@@ -308,7 +308,6 @@ export async function exportLaporanSiswaExcel(req, res) {
 }
 
 export async function exportLaporanSiswaPdf(req, res) {
-  let headersSent = false;
   try {
     const { kelas: idKelas, bulan } = req.body;
     let payload;
@@ -320,13 +319,15 @@ export async function exportLaporanSiswaPdf(req, res) {
     const filename = `laporan_absen_${kelas.kelas.replace(/\s+/g, '_')}_${bulanLabel.replace(/\s+/g, '-')}.pdf`;
     const logoPath = getLogoPath(generalSettings.logo);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
-    doc.on('error', (err) => console.error('PDF stream error (siswa):', err));
-    doc.pipe(res);
-    headersSent = true;
+
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+
+    const pdfDone = new Promise((resolve, reject) => {
+      doc.on('end', resolve);
+      doc.on('error', reject);
+    });
 
     const pageW = doc.page.width;
     const pageH = doc.page.height;
@@ -339,16 +340,13 @@ export async function exportLaporanSiswaPdf(req, res) {
     const GRAY = '#666666';
     const LIGHT_GRAY = '#f5f5f5';
 
-    // ── HEADER: Logo + School Info (centered) ──
     const headerY = margin;
     const logoSize = 55;
     let textX = margin;
     let textW = contentW;
 
     if (logoPath) {
-      try {
-        doc.image(logoPath, margin, headerY, { width: logoSize });
-      } catch (_) {}
+      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
       textX = margin + logoSize + 12;
       textW = contentW - logoSize - 12;
     }
@@ -360,66 +358,48 @@ export async function exportLaporanSiswaPdf(req, res) {
     doc.fontSize(9)
       .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 34, { width: textW, align: 'center' });
 
-    // ── Decorative line ──
     const lineY = headerY + logoSize + 10;
     doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
     doc.moveTo(margin, lineY + 1.5).lineTo(pageW - margin, lineY + 1.5).lineWidth(0.5).strokeColor(BLUE).stroke();
 
-    // ── Info section ──
     const infoY = lineY + 12;
     doc.font('Helvetica').fontSize(9).fillColor('#333333');
     doc.text(`Bulan : ${bulanLabel}`, margin, infoY);
     doc.text(`Kelas : ${kelas.kelas}`, margin, infoY + 14);
 
-    // ── Build table ──
-    const colNo = 28;
-    const colNama = 110;
-    const colDay = 19;
-    const colSum = 24;
-    const totalCols = 2 + tanggalList.length + 4;
+    const colNo = 28, colNama = 110, colDay = 19, colSum = 24;
     const tableW = colNo + colNama + tanggalList.length * colDay + 4 * colSum;
-
     const startX = margin + (contentW - tableW) / 2;
     let y = infoY + 38;
-    const rowH = 20;
-    const headerH = 30;
+    const rowH = 20, headerH = 30;
 
     function checkPage(needH) {
-      if (y + needH > pageH - margin - 50) {
-        doc.addPage();
-        y = margin;
-      }
+      if (y + needH > pageH - margin - 50) { doc.addPage(); y = margin; }
     }
 
-    // ── Table header row 1: "Hari/Tanggal" merged + "Rekap" merged ──
     checkPage(headerH + rowH);
     const hdr1Y = y;
 
-    // No + Nama header (spans 2 rows)
     doc.rect(startX, hdr1Y, colNo + colNama, headerH).fill(BLUE);
-    doc.rect(startX, hdr1Y, colNo + colNama, headerH).lineWidth(0.5).strokeColor('#ffffff').stroke();
+    doc.rect(startX, hdr1Y, colNo + colNama, headerH).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(8).fillColor(WHITE)
       .text('No / Nama', startX, hdr1Y + 9, { width: colNo + colNama, align: 'center' });
 
-    // Hari/Tanggal header
     const htX = startX + colNo + colNama;
     const htW = tanggalList.length * colDay;
     doc.rect(htX, hdr1Y, htW, headerH / 2).fill(BLUE);
-    doc.rect(htX, hdr1Y, htW, headerH / 2).lineWidth(0.5).strokeColor('#ffffff').stroke();
+    doc.rect(htX, hdr1Y, htW, headerH / 2).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(7).fillColor(WHITE)
       .text('Hari / Tanggal', htX, hdr1Y + 3, { width: htW, align: 'center' });
 
-    // Rekap header
     const rekapX = htX + htW;
     const rekapW = 4 * colSum;
     doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).fill(BLUE);
-    doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).lineWidth(0.5).strokeColor('#ffffff').stroke();
+    doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(7).fillColor(WHITE)
       .text('Rekap', rekapX, hdr1Y + 3, { width: rekapW, align: 'center' });
 
-    // ── Table header row 2: day names + date numbers + H S I A ──
     const hdr2Y = hdr1Y + headerH / 2;
-
     tanggalList.forEach((t, idx) => {
       const cx = htX + idx * colDay;
       doc.rect(cx, hdr2Y, colDay, headerH / 2).fill(LIGHT_BLUE);
@@ -431,8 +411,7 @@ export async function exportLaporanSiswaPdf(req, res) {
     });
 
     const sumColors = ['#2e7d32', '#f9a825', '#f9a825', '#c62828'];
-    const sumLabels = ['H', 'S', 'I', 'A'];
-    sumLabels.forEach((label, idx) => {
+    ['H', 'S', 'I', 'A'].forEach((label, idx) => {
       const cx = rekapX + idx * colSum;
       doc.rect(cx, hdr2Y, colSum, headerH / 2).fill(sumColors[idx]);
       doc.rect(cx, hdr2Y, colSum, headerH / 2).lineWidth(0.5).strokeColor(WHITE).stroke();
@@ -442,29 +421,24 @@ export async function exportLaporanSiswaPdf(req, res) {
 
     y = hdr1Y + headerH;
 
-    // ── Data rows ──
     const attColors = { 1: '#e8f5e9', 2: '#fff9c4', 3: '#fff9c4', 4: '#ffebee' };
     const attLabels = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
 
     for (const [i, r] of rows.entries()) {
       checkPage(rowH);
       const ry = y;
-      const isEven = i % 2 === 0;
-      const rowBg = isEven ? WHITE : LIGHT_GRAY;
+      const rowBg = i % 2 === 0 ? WHITE : LIGHT_GRAY;
 
-      // No
       doc.rect(startX, ry, colNo, rowH).fill(rowBg);
       doc.rect(startX, ry, colNo, rowH).lineWidth(0.3).strokeColor('#cccccc').stroke();
       doc.font('Helvetica').fontSize(7).fillColor('#333333')
         .text(String(i + 1), startX, ry + 5, { width: colNo, align: 'center' });
 
-      // Nama
       doc.rect(startX + colNo, ry, colNama, rowH).fill(rowBg);
       doc.rect(startX + colNo, ry, colNama, rowH).lineWidth(0.3).strokeColor('#cccccc').stroke();
       doc.font('Helvetica').fontSize(7).fillColor('#333333')
         .text(r.siswa.nama_siswa, startX + colNo + 3, ry + 5, { width: colNama - 6, align: 'left' });
 
-      // Attendance cells
       r.harian.forEach((h, idx) => {
         const cx = htX + idx * colDay;
         const cellBg = h.lewat ? rowBg : (attColors[h.id_kehadiran] || rowBg);
@@ -476,9 +450,7 @@ export async function exportLaporanSiswaPdf(req, res) {
         }
       });
 
-      // Summary columns
-      const sumData = [r.hadir || 0, r.sakit || 0, r.izin || 0, r.alfa || 0];
-      sumData.forEach((val, idx) => {
+      [r.hadir || 0, r.sakit || 0, r.izin || 0, r.alfa || 0].forEach((val, idx) => {
         const cx = rekapX + idx * colSum;
         doc.rect(cx, ry, colSum, rowH).fill(rowBg);
         doc.rect(cx, ry, colSum, rowH).lineWidth(0.3).strokeColor('#cccccc').stroke();
@@ -489,7 +461,6 @@ export async function exportLaporanSiswaPdf(req, res) {
       y += rowH;
     }
 
-    // ── Summary footer ──
     y += 10;
     checkPage(80);
     doc.font('Helvetica-Bold').fontSize(9).fillColor(BLUE)
@@ -497,7 +468,6 @@ export async function exportLaporanSiswaPdf(req, res) {
     doc.font('Helvetica').fontSize(9).fillColor('#333333')
       .text(`Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, margin, y + 14);
 
-    // ── Signature section ──
     y += 50;
     checkPage(80);
     const sigW = 180;
@@ -507,7 +477,6 @@ export async function exportLaporanSiswaPdf(req, res) {
     doc.font('Helvetica').fontSize(9).fillColor('#333333');
     doc.text('Mengetahui,', leftSigX, y, { width: sigW, align: 'center' });
     doc.text('Kepala Sekolah', leftSigX, y + 12, { width: sigW, align: 'center' });
-    doc.moveDown(4);
     doc.text('_________________________', leftSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', leftSigX, y + 70, { width: sigW, align: 'center' });
 
@@ -516,7 +485,6 @@ export async function exportLaporanSiswaPdf(req, res) {
     doc.text('_________________________', rightSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', rightSigX, y + 70, { width: sigW, align: 'center' });
 
-    // ── Page numbers ──
     const pageCount = doc.bufferedPageRange().count;
     for (let p = 0; p < pageCount; p++) {
       doc.switchToPage(p);
@@ -525,12 +493,17 @@ export async function exportLaporanSiswaPdf(req, res) {
     }
 
     doc.end();
+    await pdfDone;
+
+    const pdfBuffer = Buffer.concat(chunks);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (err) {
     console.error('exportLaporanSiswaPdf error:', err);
-    if (!headersSent && !res.headersSent) {
+    if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'Gagal mengekspor laporan PDF.' });
-    } else if (!res.writableEnded) {
-      res.end();
     }
   }
 }
@@ -772,7 +745,6 @@ export async function exportLaporanGuruExcel(req, res) {
 }
 
 export async function exportLaporanGuruPdf(req, res) {
-  let headersSent = false;
   try {
     const { bulan } = req.body;
     let payload;
@@ -783,13 +755,15 @@ export async function exportLaporanGuruPdf(req, res) {
     const filename = `laporan_absen_guru_${bulanLabel.replace(/\s+/g, '-')}.pdf`;
     const logoPath = getLogoPath(generalSettings.logo);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
-    doc.on('error', (err) => console.error('PDF stream error (guru):', err));
-    doc.pipe(res);
-    headersSent = true;
+
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+
+    const pdfDone = new Promise((resolve, reject) => {
+      doc.on('end', resolve);
+      doc.on('error', reject);
+    });
 
     const pageW = doc.page.width;
     const pageH = doc.page.height;
@@ -802,16 +776,13 @@ export async function exportLaporanGuruPdf(req, res) {
     const GRAY = '#666666';
     const LIGHT_GRAY = '#f5f5f5';
 
-    // ── HEADER: Logo + School Info (centered) ──
     const headerY = margin;
     const logoSize = 55;
     let textX = margin;
     let textW = contentW;
 
     if (logoPath) {
-      try {
-        doc.image(logoPath, margin, headerY, { width: logoSize });
-      } catch (_) {}
+      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
       textX = margin + logoSize + 12;
       textW = contentW - logoSize - 12;
     }
@@ -823,61 +794,47 @@ export async function exportLaporanGuruPdf(req, res) {
     doc.fontSize(9)
       .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 34, { width: textW, align: 'center' });
 
-    // ── Decorative line ──
     const lineY = headerY + logoSize + 10;
     doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
     doc.moveTo(margin, lineY + 1.5).lineTo(pageW - margin, lineY + 1.5).lineWidth(0.5).strokeColor(BLUE).stroke();
 
-    // ── Info section ──
     const infoY = lineY + 12;
     doc.font('Helvetica').fontSize(9).fillColor('#333333');
     doc.text(`Bulan : ${bulanLabel}`, margin, infoY);
 
-    // ── Build table ──
-    const colNo = 28;
-    const colNama = 130;
-    const colDay = 19;
-    const colSum = 24;
+    const colNo = 28, colNama = 130, colDay = 19, colSum = 24;
     const tableW = colNo + colNama + tanggalList.length * colDay + 4 * colSum;
-
     const startX = margin + (contentW - tableW) / 2;
     let y = infoY + 28;
-    const rowH = 20;
-    const headerH = 30;
+    const rowH = 20, headerH = 30;
 
     function checkPage(needH) {
-      if (y + needH > pageH - margin - 50) {
-        doc.addPage();
-        y = margin;
-      }
+      if (y + needH > pageH - margin - 50) { doc.addPage(); y = margin; }
     }
 
-    // ── Table header row 1 ──
     checkPage(headerH + rowH);
     const hdr1Y = y;
 
     doc.rect(startX, hdr1Y, colNo + colNama, headerH).fill(BLUE);
-    doc.rect(startX, hdr1Y, colNo + colNama, headerH).lineWidth(0.5).strokeColor('#ffffff').stroke();
+    doc.rect(startX, hdr1Y, colNo + col_nama, headerH).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(8).fillColor(WHITE)
       .text('No / Nama', startX, hdr1Y + 9, { width: colNo + colNama, align: 'center' });
 
     const htX = startX + colNo + colNama;
     const htW = tanggalList.length * colDay;
     doc.rect(htX, hdr1Y, htW, headerH / 2).fill(BLUE);
-    doc.rect(htX, hdr1Y, htW, headerH / 2).lineWidth(0.5).strokeColor('#ffffff').stroke();
+    doc.rect(htX, hdr1Y, htW, headerH / 2).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(7).fillColor(WHITE)
       .text('Hari / Tanggal', htX, hdr1Y + 3, { width: htW, align: 'center' });
 
     const rekapX = htX + htW;
     const rekapW = 4 * colSum;
     doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).fill(BLUE);
-    doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).lineWidth(0.5).strokeColor('#ffffff').stroke();
+    doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(7).fillColor(WHITE)
       .text('Rekap', rekapX, hdr1Y + 3, { width: rekapW, align: 'center' });
 
-    // ── Table header row 2 ──
     const hdr2Y = hdr1Y + headerH / 2;
-
     tanggalList.forEach((t, idx) => {
       const cx = htX + idx * colDay;
       doc.rect(cx, hdr2Y, colDay, headerH / 2).fill(LIGHT_BLUE);
@@ -889,8 +846,7 @@ export async function exportLaporanGuruPdf(req, res) {
     });
 
     const sumColors = ['#2e7d32', '#f9a825', '#f9a825', '#c62828'];
-    const sumLabels = ['H', 'S', 'I', 'A'];
-    sumLabels.forEach((label, idx) => {
+    ['H', 'S', 'I', 'A'].forEach((label, idx) => {
       const cx = rekapX + idx * colSum;
       doc.rect(cx, hdr2Y, colSum, headerH / 2).fill(sumColors[idx]);
       doc.rect(cx, hdr2Y, colSum, headerH / 2).lineWidth(0.5).strokeColor(WHITE).stroke();
@@ -900,15 +856,13 @@ export async function exportLaporanGuruPdf(req, res) {
 
     y = hdr1Y + headerH;
 
-    // ── Data rows ──
     const attColors = { 1: '#e8f5e9', 2: '#fff9c4', 3: '#fff9c4', 4: '#ffebee' };
     const attLabels = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
 
     for (const [i, r] of rows.entries()) {
       checkPage(rowH);
       const ry = y;
-      const isEven = i % 2 === 0;
-      const rowBg = isEven ? WHITE : LIGHT_GRAY;
+      const rowBg = i % 2 === 0 ? WHITE : LIGHT_GRAY;
 
       doc.rect(startX, ry, colNo, rowH).fill(rowBg);
       doc.rect(startX, ry, colNo, rowH).lineWidth(0.3).strokeColor('#cccccc').stroke();
@@ -931,8 +885,7 @@ export async function exportLaporanGuruPdf(req, res) {
         }
       });
 
-      const sumData = [r.hadir || 0, r.sakit || 0, r.izin || 0, r.alfa || 0];
-      sumData.forEach((val, idx) => {
+      [r.hadir || 0, r.sakit || 0, r.izin || 0, r.alfa || 0].forEach((val, idx) => {
         const cx = rekapX + idx * colSum;
         doc.rect(cx, ry, colSum, rowH).fill(rowBg);
         doc.rect(cx, ry, colSum, rowH).lineWidth(0.3).strokeColor('#cccccc').stroke();
@@ -943,7 +896,6 @@ export async function exportLaporanGuruPdf(req, res) {
       y += rowH;
     }
 
-    // ── Summary footer ──
     y += 10;
     checkPage(80);
     doc.font('Helvetica-Bold').fontSize(9).fillColor(BLUE)
@@ -951,7 +903,6 @@ export async function exportLaporanGuruPdf(req, res) {
     doc.font('Helvetica').fontSize(9).fillColor('#333333')
       .text(`Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, margin, y + 14);
 
-    // ── Signature section ──
     y += 50;
     checkPage(80);
     const sigW = 180;
@@ -969,7 +920,6 @@ export async function exportLaporanGuruPdf(req, res) {
     doc.text('_________________________', rightSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', rightSigX, y + 70, { width: sigW, align: 'center' });
 
-    // ── Page numbers ──
     const pageCount = doc.bufferedPageRange().count;
     for (let p = 0; p < pageCount; p++) {
       doc.switchToPage(p);
@@ -978,12 +928,17 @@ export async function exportLaporanGuruPdf(req, res) {
     }
 
     doc.end();
+    await pdfDone;
+
+    const pdfBuffer = Buffer.concat(chunks);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (err) {
     console.error('exportLaporanGuruPdf error:', err);
-    if (!headersSent && !res.headersSent) {
+    if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'Gagal mengekspor laporan PDF.' });
-    } else if (!res.writableEnded) {
-      res.end();
     }
   }
 }
