@@ -347,7 +347,7 @@ export async function exportLaporanSiswaPdf(req, res) {
 
     if (logoPath) {
       try {
-        doc.image(logoPath, margin, headerY, { width: logoSize, height: logoSize, fit: [logoSize, logoSize] });
+        doc.image(logoPath, margin, headerY, { width: logoSize });
       } catch (_) {}
       textX = margin + logoSize + 12;
       textW = contentW - logoSize - 12;
@@ -810,7 +810,7 @@ export async function exportLaporanGuruPdf(req, res) {
 
     if (logoPath) {
       try {
-        doc.image(logoPath, margin, headerY, { width: logoSize, height: logoSize, fit: [logoSize, logoSize] });
+        doc.image(logoPath, margin, headerY, { width: logoSize });
       } catch (_) {}
       textX = margin + logoSize + 12;
       textW = contentW - logoSize - 12;
