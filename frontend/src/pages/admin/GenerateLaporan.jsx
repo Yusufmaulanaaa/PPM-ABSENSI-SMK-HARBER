@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { FileSpreadsheet, FileDown, FileText } from 'lucide-react';
-import api, { UPLOADS_BASE_URL } from '../../api/client';
+import api from '../../api/client';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 
@@ -50,26 +50,29 @@ export default function GenerateLaporan() {
   async function handleExport(format) {
     setExporting(true);
     try {
-      const token = localStorage.getItem('absensi_token');
       const endpoint = tab === 'siswa' ? `/admin/laporan/siswa/${format}` : `/admin/laporan/guru/${format}`;
       const body = tab === 'siswa' ? { kelas: idKelas, bulan } : { bulan };
 
-      const res = await fetch(`${UPLOADS_BASE_URL}/api${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
+      const res = await api.post(endpoint, body, { responseType: 'blob' });
 
-      if (!res.ok) throw new Error('Gagal mengekspor laporan.');
-
-      const blob = await res.blob();
+      const blob = new Blob([res.data]);
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `laporan-${tab}-${bulan}.${format === 'xlsx' ? 'xlsx' : format === 'docx' ? 'docx' : 'pdf'}`;
+      a.download = `laporan-${tab}-${bulan}.${format}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err) {
-      toast.error(err.message || 'Gagal mengekspor laporan.');
+      if (err.response?.data) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          toast.error(json.message || 'Gagal mengekspor laporan.');
+        } catch {
+          toast.error('Gagal mengekspor laporan.');
+        }
+      } else {
+        toast.error(err.message || 'Gagal mengekspor laporan.');
+      }
     } finally {
       setExporting(false);
     }

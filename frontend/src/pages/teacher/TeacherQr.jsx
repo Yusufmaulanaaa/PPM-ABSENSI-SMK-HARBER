@@ -17,9 +17,8 @@ export default function TeacherQr() {
   }
 
   async function handleDownload(siswaId, filename) {
-    const token = localStorage.getItem('absensi_token');
-    const res = await fetch(`${UPLOADS_BASE_URL}/api/admin/qr/siswa/${siswaId}/download`, { headers: { Authorization: `Bearer ${token}` } });
-    const blob = await res.blob();
+    const res = await api.get(`/admin/qr/siswa/${siswaId}/download`, { responseType: 'blob' });
+    const blob = new Blob([res.data]);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;

@@ -132,7 +132,19 @@ export async function exportLaporanSiswaExcel(req, res) {
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('Laporan Siswa');
 
-    const HEADER_BG = 'FF4472C4';
+    const logoPathXlsx = getLogoPath(generalSettings.logo);
+    let logoColEnd = 1;
+    if (logoPathXlsx) {
+      try {
+        const buf = fs.readFileSync(logoPathXlsx);
+        const ext = logoPathXlsx.split('.').pop().toLowerCase();
+        const imgId = workbook.addImage({ buffer: buf, extension: ext === 'jpg' ? 'jpeg' : ext });
+        ws.addImage(imgId, { tl: { col: 0, row: 0 }, ext: { width: 80, height: 80 } });
+        logoColEnd = 2;
+      } catch (_) {}
+    }
+
+    const HEADER_BG = 'FF1A3A6B';
     const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
     const thinBorder = {
       top: { style: 'thin' }, left: { style: 'thin' },
@@ -148,55 +160,62 @@ export async function exportLaporanSiswaExcel(req, res) {
     };
     const labelMap = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
 
-    // Header info rows
-    ws.mergeCells(1, 1, 1, 4 + tanggalList.length);
-    const titleCell = ws.getCell('A1');
-    titleCell.value = `DAFTAR HADIR SISWA - ${generalSettings.school_name}`;
-    titleCell.font = { bold: true, size: 14 };
+    const totalCols = 6 + tanggalList.length;
+    const headerStartCol = logoColEnd;
+    ws.mergeCells(1, headerStartCol, 1, totalCols);
+    const titleCell = ws.getCell(1, headerStartCol);
+    titleCell.value = generalSettings.school_name.toUpperCase();
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FF1A3A6B' } };
     titleCell.alignment = { horizontal: 'center' };
 
-    ws.mergeCells(2, 1, 2, 4 + tanggalList.length);
-    ws.getCell('A2').value = `TAHUN PELAJARAN ${generalSettings.school_year}`;
-    ws.getCell('A2').font = { bold: true, size: 11 };
-    ws.getCell('A2').alignment = { horizontal: 'center' };
+    ws.mergeCells(2, headerStartCol, 2, totalCols);
+    const subCell = ws.getCell(2, headerStartCol);
+    subCell.value = 'DAFTAR HADIR SISWA';
+    subCell.font = { bold: true, size: 12 };
+    subCell.alignment = { horizontal: 'center' };
 
-    ws.mergeCells(3, 1, 3, 4 + tanggalList.length);
-    ws.getCell('A3').value = `Bulan: ${bulanLabel}    Kelas: ${kelas.kelas}`;
-    ws.getCell('A3').font = { size: 10 };
-    ws.getCell('A3').alignment = { horizontal: 'center' };
+    ws.mergeCells(3, headerStartCol, 3, totalCols);
+    ws.getCell(3, headerStartCol).value = `Tahun Pelajaran ${generalSettings.school_year}`;
+    ws.getCell(3, headerStartCol).font = { bold: true, size: 11 };
+    ws.getCell(3, headerStartCol).alignment = { horizontal: 'center' };
 
-    // Table header row (row 5)
-    const headerRow1 = ws.getRow(5);
-    const headerRow2 = ws.getRow(6);
-    const headerRow3 = ws.getRow(7);
+    ws.mergeCells(4, headerStartCol, 4, totalCols);
+    ws.getCell(4, headerStartCol).value = `Bulan: ${bulanLabel}    Kelas: ${kelas.kelas}`;
+    ws.getCell(4, headerStartCol).font = { size: 10, italic: true };
+    ws.getCell(4, headerStartCol).alignment = { horizontal: 'center' };
 
-    // Row 5: blank, blank, "Hari/Tanggal" merged, blank, blank, blank, blank
-    ws.mergeCells(5, 3, 5, 2 + tanggalList.length);
-    const hariTanggalCell = ws.getCell(5, 3);
+    // Table header row (row 6)
+    const headerRow1 = ws.getRow(6);
+    const headerRow2 = ws.getRow(7);
+    const headerRow3 = ws.getRow(8);
+
+    // Row 6: blank, blank, "Hari/Tanggal" merged, blank, blank, blank, blank
+    ws.mergeCells(6, 3, 6, 2 + tanggalList.length);
+    const hariTanggalCell = ws.getCell(6, 3);
     hariTanggalCell.value = 'Hari/Tanggal';
     hariTanggalCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
     hariTanggalCell.fill = headerFill;
     hariTanggalCell.alignment = centerAlign;
     hariTanggalCell.border = thinBorder;
 
-    ws.mergeCells(5, 3 + tanggalList.length, 5, 6 + tanggalList.length);
-    const totalCell = ws.getCell(5, 3 + tanggalList.length);
+    ws.mergeCells(6, 3 + tanggalList.length, 6, 6 + tanggalList.length);
+    const totalCell = ws.getCell(6, 3 + tanggalList.length);
     totalCell.value = 'Total';
     totalCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
     totalCell.fill = headerFill;
     totalCell.alignment = centerAlign;
     totalCell.border = thinBorder;
 
-    // Fill borders on row 5 for merged cells
+    // Fill borders on row 6 for merged cells
     for (let c = 1; c <= 6 + tanggalList.length; c++) {
-      const cell = ws.getCell(5, c);
+      const cell = ws.getCell(6, c);
       cell.border = thinBorder;
       if (!cell.fill || !cell.fill.fgColor) {
         cell.fill = headerFill;
       }
     }
-    ws.getCell(5, 1).value = '';
-    ws.getCell(5, 2).value = '';
+    ws.getCell(6, 1).value = '';
+    ws.getCell(6, 2).value = '';
 
     // Row 6: day names
     headerRow2.getCell(1).value = '';
@@ -246,7 +265,7 @@ export async function exportLaporanSiswaExcel(req, res) {
 
     // Data rows
     rows.forEach((r, i) => {
-      const rowNum = 8 + i;
+      const rowNum = 9 + i;
       const row = ws.getRow(rowNum);
       row.getCell(1).value = i + 1;
       row.getCell(1).alignment = centerAlign;
@@ -275,7 +294,7 @@ export async function exportLaporanSiswaExcel(req, res) {
     });
 
     // Summary rows
-    const summaryStart = 8 + rows.length + 1;
+    const summaryStart = 9 + rows.length + 1;
     const summaryData = [
       ['Jumlah siswa', rekap.total],
       ['Laki-laki', rekap.laki],
@@ -342,31 +361,31 @@ export async function exportLaporanSiswaPdf(req, res) {
     const LIGHT_GRAY = '#f5f5f5';
 
     const headerY = margin;
-    const logoSize = 55;
+    const logoSize = 72;
     let textX = margin;
     let textW = contentW;
 
     if (logoPath) {
-      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
-      textX = margin + logoSize + 12;
-      textW = contentW - logoSize - 12;
+      try { doc.image(logoPath, margin, headerY, { width: logoSize, height: logoSize }); } catch (_) {}
+      textX = margin + logoSize + 15;
+      textW = contentW - logoSize - 15;
     }
 
-    doc.font('Helvetica-Bold').fontSize(16).fillColor(BLUE)
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(BLUE)
       .text(generalSettings.school_name.toUpperCase(), textX, headerY + 2, { width: textW, align: 'center' });
-    doc.font('Helvetica').fontSize(9).fillColor(GRAY)
-      .text('Daftar Hadir Siswa', textX, headerY + 22, { width: textW, align: 'center' });
-    doc.fontSize(9)
-      .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 34, { width: textW, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#333333')
+      .text('DAFTAR HADIR SISWA', textX, headerY + 26, { width: textW, align: 'center' });
+    doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+      .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 42, { width: textW, align: 'center' });
 
     const lineY = headerY + logoSize + 10;
     doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
-    doc.moveTo(margin, lineY + 1.5).lineTo(pageW - margin, lineY + 1.5).lineWidth(0.5).strokeColor(BLUE).stroke();
+    doc.moveTo(margin, lineY + 2).lineTo(pageW - margin, lineY + 2).lineWidth(0.5).strokeColor(BLUE).stroke();
 
-    const infoY = lineY + 12;
-    doc.font('Helvetica').fontSize(9).fillColor('#333333');
+    const infoY = lineY + 14;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#333333');
     doc.text(`Bulan : ${bulanLabel}`, margin, infoY);
-    doc.text(`Kelas : ${kelas.kelas}`, margin, infoY + 14);
+    doc.text(`Kelas : ${kelas.kelas}`, margin, infoY + 16);
 
     const colNo = 28, colNama = 110, colDay = 19, colSum = 24;
     const tableW = colNo + colNama + tanggalList.length * colDay + 4 * colSum;
@@ -470,21 +489,23 @@ export async function exportLaporanSiswaPdf(req, res) {
       .text(`Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, margin, y + 14);
 
     y += 50;
-    checkPage(80);
-    const sigW = 180;
-    const leftSigX = margin + 20;
-    const rightSigX = pageW - margin - sigW - 20;
+    checkPage(90);
+    const sigW = 200;
+    const leftSigX = margin;
+    const rightSigX = pageW - margin - sigW;
 
-    doc.font('Helvetica').fontSize(9).fillColor('#333333');
+    doc.font('Helvetica').fontSize(10).fillColor('#333333');
     doc.text('Mengetahui,', leftSigX, y, { width: sigW, align: 'center' });
-    doc.text('Kepala Sekolah', leftSigX, y + 12, { width: sigW, align: 'center' });
-    doc.text('_________________________', leftSigX, y + 56, { width: sigW, align: 'center' });
-    doc.text('NIP.', leftSigX, y + 70, { width: sigW, align: 'center' });
+    doc.text('Kepala Sekolah', leftSigX, y + 15, { width: sigW, align: 'center' });
+    doc.text('', leftSigX, y + 30, { width: sigW, align: 'center' });
+    doc.text('_________________________', leftSigX, y + 60, { width: sigW, align: 'center' });
+    doc.text('NIP.', leftSigX, y + 75, { width: sigW, align: 'center' });
 
     doc.text(`Tegal, ${bulanLabel}`, rightSigX, y, { width: sigW, align: 'center' });
-    doc.text('Guru Kelas', rightSigX, y + 12, { width: sigW, align: 'center' });
-    doc.text('_________________________', rightSigX, y + 56, { width: sigW, align: 'center' });
-    doc.text('NIP.', rightSigX, y + 70, { width: sigW, align: 'center' });
+    doc.text('Guru Kelas', rightSigX, y + 15, { width: sigW, align: 'center' });
+    doc.text('', rightSigX, y + 30, { width: sigW, align: 'center' });
+    doc.text('_________________________', rightSigX, y + 60, { width: sigW, align: 'center' });
+    doc.text('NIP.', rightSigX, y + 75, { width: sigW, align: 'center' });
 
     const pageCount = doc.bufferedPageRange().count;
     for (let p = 0; p < pageCount; p++) {
@@ -579,7 +600,19 @@ export async function exportLaporanGuruExcel(req, res) {
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('Laporan Guru');
 
-    const HEADER_BG = 'FF4472C4';
+    const logoPathXlsx = getLogoPath(generalSettings.logo);
+    let logoColEnd = 1;
+    if (logoPathXlsx) {
+      try {
+        const buf = fs.readFileSync(logoPathXlsx);
+        const ext = logoPathXlsx.split('.').pop().toLowerCase();
+        const imgId = workbook.addImage({ buffer: buf, extension: ext === 'jpg' ? 'jpeg' : ext });
+        ws.addImage(imgId, { tl: { col: 0, row: 0 }, ext: { width: 80, height: 80 } });
+        logoColEnd = 2;
+      } catch (_) {}
+    }
+
+    const HEADER_BG = 'FF1A3A6B';
     const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
     const thinBorder = {
       top: { style: 'thin' }, left: { style: 'thin' },
@@ -595,37 +628,44 @@ export async function exportLaporanGuruExcel(req, res) {
     };
     const labelMap = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
 
-    // Header info rows
-    ws.mergeCells(1, 1, 1, 4 + tanggalList.length);
-    const titleCell = ws.getCell('A1');
-    titleCell.value = `DAFTAR HADIR GURU - ${generalSettings.school_name}`;
-    titleCell.font = { bold: true, size: 14 };
+    const totalCols = 6 + tanggalList.length;
+    const headerStartCol = logoColEnd;
+    ws.mergeCells(1, headerStartCol, 1, totalCols);
+    const titleCell = ws.getCell(1, headerStartCol);
+    titleCell.value = generalSettings.school_name.toUpperCase();
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FF1A3A6B' } };
     titleCell.alignment = { horizontal: 'center' };
 
-    ws.mergeCells(2, 1, 2, 4 + tanggalList.length);
-    ws.getCell('A2').value = `TAHUN PELAJARAN ${generalSettings.school_year}`;
-    ws.getCell('A2').font = { bold: true, size: 11 };
-    ws.getCell('A2').alignment = { horizontal: 'center' };
+    ws.mergeCells(2, headerStartCol, 2, totalCols);
+    const subCell = ws.getCell(2, headerStartCol);
+    subCell.value = 'DAFTAR HADIR GURU';
+    subCell.font = { bold: true, size: 12 };
+    subCell.alignment = { horizontal: 'center' };
 
-    ws.mergeCells(3, 1, 3, 4 + tanggalList.length);
-    ws.getCell('A3').value = `Bulan: ${bulanLabel}`;
-    ws.getCell('A3').font = { size: 10 };
-    ws.getCell('A3').alignment = { horizontal: 'center' };
+    ws.mergeCells(3, headerStartCol, 3, totalCols);
+    ws.getCell(3, headerStartCol).value = `Tahun Pelajaran ${generalSettings.school_year}`;
+    ws.getCell(3, headerStartCol).font = { bold: true, size: 11 };
+    ws.getCell(3, headerStartCol).alignment = { horizontal: 'center' };
 
-    // Table header row (row 5)
-    const headerRow2 = ws.getRow(6);
-    const headerRow3 = ws.getRow(7);
+    ws.mergeCells(4, headerStartCol, 4, totalCols);
+    ws.getCell(4, headerStartCol).value = `Bulan: ${bulanLabel}`;
+    ws.getCell(4, headerStartCol).font = { size: 10, italic: true };
+    ws.getCell(4, headerStartCol).alignment = { horizontal: 'center' };
 
-    ws.mergeCells(5, 3, 5, 2 + tanggalList.length);
-    const hariTanggalCell = ws.getCell(5, 3);
+    // Table header row (row 6)
+    const headerRow2 = ws.getRow(7);
+    const headerRow3 = ws.getRow(8);
+
+    ws.mergeCells(6, 3, 6, 2 + tanggalList.length);
+    const hariTanggalCell = ws.getCell(6, 3);
     hariTanggalCell.value = 'Hari/Tanggal';
     hariTanggalCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
     hariTanggalCell.fill = headerFill;
     hariTanggalCell.alignment = centerAlign;
     hariTanggalCell.border = thinBorder;
 
-    ws.mergeCells(5, 3 + tanggalList.length, 5, 6 + tanggalList.length);
-    const totalCell = ws.getCell(5, 3 + tanggalList.length);
+    ws.mergeCells(6, 3 + tanggalList.length, 6, 6 + tanggalList.length);
+    const totalCell = ws.getCell(6, 3 + tanggalList.length);
     totalCell.value = 'Total';
     totalCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
     totalCell.fill = headerFill;
@@ -633,12 +673,12 @@ export async function exportLaporanGuruExcel(req, res) {
     totalCell.border = thinBorder;
 
     for (let c = 1; c <= 6 + tanggalList.length; c++) {
-      const cell = ws.getCell(5, c);
+      const cell = ws.getCell(6, c);
       cell.border = thinBorder;
       if (!cell.fill || !cell.fill.fgColor) cell.fill = headerFill;
     }
-    ws.getCell(5, 1).value = '';
-    ws.getCell(5, 2).value = '';
+    ws.getCell(6, 1).value = '';
+    ws.getCell(6, 2).value = '';
 
     // Row 6: day names
     headerRow2.getCell(1).value = '';
@@ -687,7 +727,7 @@ export async function exportLaporanGuruExcel(req, res) {
 
     // Data rows
     rows.forEach((r, i) => {
-      const rowNum = 8 + i;
+      const rowNum = 9 + i;
       const row = ws.getRow(rowNum);
       row.getCell(1).value = i + 1;
       row.getCell(1).alignment = centerAlign;
@@ -714,7 +754,7 @@ export async function exportLaporanGuruExcel(req, res) {
     });
 
     // Summary rows
-    const summaryStart = 8 + rows.length + 1;
+    const summaryStart = 9 + rows.length + 1;
     const summaryData = [
       ['Jumlah guru', rekap.total],
       ['Laki-laki', rekap.laki],
@@ -778,29 +818,29 @@ export async function exportLaporanGuruPdf(req, res) {
     const LIGHT_GRAY = '#f5f5f5';
 
     const headerY = margin;
-    const logoSize = 55;
+    const logoSize = 72;
     let textX = margin;
     let textW = contentW;
 
     if (logoPath) {
-      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
-      textX = margin + logoSize + 12;
-      textW = contentW - logoSize - 12;
+      try { doc.image(logoPath, margin, headerY, { width: logoSize, height: logoSize }); } catch (_) {}
+      textX = margin + logoSize + 15;
+      textW = contentW - logoSize - 15;
     }
 
-    doc.font('Helvetica-Bold').fontSize(16).fillColor(BLUE)
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(BLUE)
       .text(generalSettings.school_name.toUpperCase(), textX, headerY + 2, { width: textW, align: 'center' });
-    doc.font('Helvetica').fontSize(9).fillColor(GRAY)
-      .text('Daftar Hadir Guru', textX, headerY + 22, { width: textW, align: 'center' });
-    doc.fontSize(9)
-      .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 34, { width: textW, align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#333333')
+      .text('DAFTAR HADIR GURU', textX, headerY + 26, { width: textW, align: 'center' });
+    doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+      .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 42, { width: textW, align: 'center' });
 
     const lineY = headerY + logoSize + 10;
     doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
-    doc.moveTo(margin, lineY + 1.5).lineTo(pageW - margin, lineY + 1.5).lineWidth(0.5).strokeColor(BLUE).stroke();
+    doc.moveTo(margin, lineY + 2).lineTo(pageW - margin, lineY + 2).lineWidth(0.5).strokeColor(BLUE).stroke();
 
-    const infoY = lineY + 12;
-    doc.font('Helvetica').fontSize(9).fillColor('#333333');
+    const infoY = lineY + 14;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#333333');
     doc.text(`Bulan : ${bulanLabel}`, margin, infoY);
 
     const colNo = 28, colNama = 130, colDay = 19, colSum = 24;
@@ -905,21 +945,23 @@ export async function exportLaporanGuruPdf(req, res) {
       .text(`Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, margin, y + 14);
 
     y += 50;
-    checkPage(80);
-    const sigW = 180;
-    const leftSigX = margin + 20;
-    const rightSigX = pageW - margin - sigW - 20;
+    checkPage(90);
+    const sigW = 200;
+    const leftSigX = margin;
+    const rightSigX = pageW - margin - sigW;
 
-    doc.font('Helvetica').fontSize(9).fillColor('#333333');
+    doc.font('Helvetica').fontSize(10).fillColor('#333333');
     doc.text('Mengetahui,', leftSigX, y, { width: sigW, align: 'center' });
-    doc.text('Kepala Sekolah', leftSigX, y + 12, { width: sigW, align: 'center' });
-    doc.text('_________________________', leftSigX, y + 56, { width: sigW, align: 'center' });
-    doc.text('NIP.', leftSigX, y + 70, { width: sigW, align: 'center' });
+    doc.text('Kepala Sekolah', leftSigX, y + 15, { width: sigW, align: 'center' });
+    doc.text('', leftSigX, y + 30, { width: sigW, align: 'center' });
+    doc.text('_________________________', leftSigX, y + 60, { width: sigW, align: 'center' });
+    doc.text('NIP.', leftSigX, y + 75, { width: sigW, align: 'center' });
 
     doc.text(`Tegal, ${bulanLabel}`, rightSigX, y, { width: sigW, align: 'center' });
-    doc.text('Guru', rightSigX, y + 12, { width: sigW, align: 'center' });
-    doc.text('_________________________', rightSigX, y + 56, { width: sigW, align: 'center' });
-    doc.text('NIP.', rightSigX, y + 70, { width: sigW, align: 'center' });
+    doc.text('Guru', rightSigX, y + 15, { width: sigW, align: 'center' });
+    doc.text('', rightSigX, y + 30, { width: sigW, align: 'center' });
+    doc.text('_________________________', rightSigX, y + 60, { width: sigW, align: 'center' });
+    doc.text('NIP.', rightSigX, y + 75, { width: sigW, align: 'center' });
 
     const pageCount = doc.bufferedPageRange().count;
     for (let p = 0; p < pageCount; p++) {
@@ -1002,39 +1044,39 @@ function buildWordDoc({ logoBuffer, schoolName, schoolYear, title, bulanLabel, k
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 0 },
-      children: [new TextRun({ text: schoolName.toUpperCase(), bold: true, size: 32, color: '1a3a6b', font: 'Times New Roman' })],
+      children: [new TextRun({ text: schoolName.toUpperCase(), bold: true, size: 36, color: '1a3a6b', font: 'Times New Roman' })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 0 },
-      children: [new TextRun({ text: title, bold: true, size: 26, color: '1a3a6b', font: 'Times New Roman' })],
+      children: [new TextRun({ text: title, bold: true, size: 28, color: '333333', font: 'Times New Roman' })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 0 },
-      children: [new TextRun({ text: `Tahun Pelajaran ${schoolYear}`, size: 22, font: 'Times New Roman' })],
+      children: [new TextRun({ text: `Tahun Pelajaran ${schoolYear}`, size: 24, font: 'Times New Roman' })],
     }),
   ];
 
   if (logoBuffer) {
     children.push(new Table({
-      columnWidths: [1800, totalW - 1800],
+      columnWidths: [2000, totalW - 2000],
       rows: [
         new TableRow({
           children: [
             new TableCell({
-              width: { size: 1800, type: WidthType.DXA },
+              width: { size: 2000, type: WidthType.DXA },
               borders: NO_BORDERS,
               verticalAlign: VerticalAlign.CENTER,
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
-                  children: [new ImageRun({ data: logoBuffer, transformation: { width: 65, height: 65 }, type: 'jpg' })],
+                  children: [new ImageRun({ data: logoBuffer, transformation: { width: 80, height: 80 }, type: 'jpg' })],
                 }),
               ],
             }),
             new TableCell({
-              width: { size: totalW - 1800, type: WidthType.DXA },
+              width: { size: totalW - 2000, type: WidthType.DXA },
               borders: NO_BORDERS,
               verticalAlign: VerticalAlign.CENTER,
               children: headerChildren,
@@ -1052,8 +1094,8 @@ function buildWordDoc({ logoBuffer, schoolName, schoolYear, title, bulanLabel, k
     new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '1a3a6b' } }, spacing: { after: 100 }, children: [] }),
   );
 
-  children.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: `Bulan : ${bulanLabel}`, size: 20, font: 'Times New Roman' })] }));
-  if (kelasName) children.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: `Kelas : ${kelasName}`, size: 20, font: 'Times New Roman' })] }));
+  children.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [new TextRun({ text: `Bulan : ${bulanLabel}`, bold: true, size: 22, font: 'Times New Roman' })] }));
+  if (kelasName) children.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: `Kelas : ${kelasName}`, bold: true, size: 22, font: 'Times New Roman' })] }));
   children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
 
   const BLUE = '1a3a6b', LIGHT_BLUE = 'e8eef7';
@@ -1114,8 +1156,8 @@ function buildWordDoc({ logoBuffer, schoolName, schoolYear, title, bulanLabel, k
 
   children.push(
     new Paragraph({ spacing: { before: 200 }, children: [] }),
-    new Paragraph({ children: [new TextRun({ text: `Jumlah ${personKey === 'siswa' ? 'Siswa' : 'Guru'} : ${rekap.total}`, bold: true, size: 20, color: '1a3a6b', font: 'Times New Roman' })] }),
-    new Paragraph({ children: [new TextRun({ text: `Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, size: 20, font: 'Times New Roman' })] }),
+    new Paragraph({ children: [new TextRun({ text: `Jumlah ${personKey === 'siswa' ? 'Siswa' : 'Guru'} : ${rekap.total}`, bold: true, size: 22, color: '1a3a6b', font: 'Times New Roman' })] }),
+    new Paragraph({ children: [new TextRun({ text: `Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, size: 22, font: 'Times New Roman' })] }),
   );
 
   const sigW = Math.floor(totalW / 2);
@@ -1129,21 +1171,21 @@ function buildWordDoc({ logoBuffer, schoolName, schoolYear, title, bulanLabel, k
             new TableCell({
               borders: NO_BORDERS,
               children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Mengetahui,', size: 20, font: 'Times New Roman' })] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Kepala Sekolah', size: 20, font: 'Times New Roman' })] }),
-                new Paragraph({ spacing: { before: 600 }, children: [] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '_________________________', size: 20, font: 'Times New Roman' })] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NIP.', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: 'Mengetahui,', bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: 'Kepala Sekolah', bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ spacing: { before: 700 }, children: [] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: '_________________________', size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NIP.', size: 22, font: 'Times New Roman' })] }),
               ],
             }),
             new TableCell({
               borders: NO_BORDERS,
               children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Tegal, ${bulanLabel}`, size: 20, font: 'Times New Roman' })] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: personKey === 'siswa' ? 'Guru Kelas' : 'Guru', size: 20, font: 'Times New Roman' })] }),
-                new Paragraph({ spacing: { before: 600 }, children: [] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '_________________________', size: 20, font: 'Times New Roman' })] }),
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NIP.', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: `Tegal, ${bulanLabel}`, bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: personKey === 'siswa' ? 'Guru Kelas' : 'Guru', bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ spacing: { before: 700 }, children: [] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: '_________________________', size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NIP.', size: 22, font: 'Times New Roman' })] }),
               ],
             }),
           ],

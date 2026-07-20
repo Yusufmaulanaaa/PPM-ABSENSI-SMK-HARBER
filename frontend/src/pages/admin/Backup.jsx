@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Download } from 'lucide-react';
-import { UPLOADS_BASE_URL } from '../../api/client';
 import api from '../../api/client';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
@@ -10,18 +9,16 @@ import Modal from '../../components/Modal';
 export default function Backup() {
   const [downloading, setDownloading] = useState('');
   const [restoring, setRestoring] = useState(false);
-  const [confirmRestore, setConfirmRestore] = useState(null); // 'db' | 'photos'
+  const [confirmRestore, setConfirmRestore] = useState(null);
   const dbFileRef = useRef(null);
   const photosFileRef = useRef(null);
 
   async function handleDownload(type) {
     setDownloading(type);
     try {
-      const token = localStorage.getItem('absensi_token');
       const endpoint = type === 'db' ? '/admin/backup/db' : '/admin/backup/photos';
-      const res = await fetch(`${UPLOADS_BASE_URL}/api${endpoint}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error('Gagal membuat backup.');
-      const blob = await res.blob();
+      const res = await api.get(endpoint, { responseType: 'blob' });
+      const blob = new Blob([res.data]);
       const filename = type === 'db' ? `backup_db_${Date.now()}.json` : `backup_photos_${Date.now()}.zip`;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -30,7 +27,7 @@ export default function Backup() {
       URL.revokeObjectURL(a.href);
       toast.success('Backup berhasil diunduh.');
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.response?.data?.message || 'Gagal membuat backup.');
     } finally {
       setDownloading('');
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { FileSpreadsheet, FileDown, FileText } from 'lucide-react';
-import api, { UPLOADS_BASE_URL } from '../../api/client';
+import api from '../../api/client';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 
@@ -43,21 +43,26 @@ export default function TeacherLaporan() {
   async function handleExport(format) {
     setExporting(true);
     try {
-      const token = localStorage.getItem('absensi_token');
-      const res = await fetch(`${UPLOADS_BASE_URL}/api/admin/laporan/siswa/${format}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ kelas: kelas.id_kelas, bulan }),
-      });
-      if (!res.ok) throw new Error('Gagal mengekspor laporan.');
-      const blob = await res.blob();
+      const res = await api.post(`/admin/laporan/siswa/${format}`, { kelas: kelas.id_kelas, bulan }, { responseType: 'blob' });
+
+      const blob = new Blob([res.data]);
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `laporan-${kelas.nama_kelas}-${bulan}.${format}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err) {
-      toast.error(err.message);
+      if (err.response?.data) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          toast.error(json.message || 'Gagal mengekspor laporan.');
+        } catch {
+          toast.error('Gagal mengekspor laporan.');
+        }
+      } else {
+        toast.error(err.message || 'Gagal mengekspor laporan.');
+      }
     } finally {
       setExporting(false);
     }

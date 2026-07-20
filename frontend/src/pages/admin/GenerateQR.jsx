@@ -32,9 +32,8 @@ export default function GenerateQR() {
   }
 
   async function handleDownload(url, filename) {
-    const token = localStorage.getItem('absensi_token');
-    const res = await fetch(`${UPLOADS_BASE_URL}/api${url}`, { headers: { Authorization: `Bearer ${token}` } });
-    const blob = await res.blob();
+    const res = await api.get(url, { responseType: 'blob' });
+    const blob = new Blob([res.data]);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;
