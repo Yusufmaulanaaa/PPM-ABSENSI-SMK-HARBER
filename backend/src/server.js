@@ -33,7 +33,7 @@ app.use('/uploads', express.static(uploadsRoot));
 
 // ── Health check ──
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Absensi Sekolah API berjalan dengan baik.', timestamp: new Date().toISOString(), version: '4-cors-fix' });
+  res.json({ success: true, message: 'Absensi Sekolah API berjalan dengan baik.', timestamp: new Date().toISOString(), version: '5-laporan-fix' });
 });
 
 // ── Routes ──

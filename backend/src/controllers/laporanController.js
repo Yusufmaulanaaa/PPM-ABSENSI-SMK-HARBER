@@ -366,7 +366,7 @@ export async function exportLaporanSiswaPdf(req, res) {
     let textW = contentW;
 
     if (logoPath) {
-      try { doc.image(logoPath, margin, headerY, { width: logoSize, height: logoSize }); } catch (_) {}
+      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
       textX = margin + logoSize + 15;
       textW = contentW - logoSize - 15;
     }
@@ -378,7 +378,7 @@ export async function exportLaporanSiswaPdf(req, res) {
     doc.font('Helvetica').fontSize(10).fillColor(GRAY)
       .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 42, { width: textW, align: 'center' });
 
-    const lineY = headerY + logoSize + 10;
+    const lineY = headerY + logoSize + 12;
     doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
     doc.moveTo(margin, lineY + 2).lineTo(pageW - margin, lineY + 2).lineWidth(0.5).strokeColor(BLUE).stroke();
 
@@ -823,7 +823,7 @@ export async function exportLaporanGuruPdf(req, res) {
     let textW = contentW;
 
     if (logoPath) {
-      try { doc.image(logoPath, margin, headerY, { width: logoSize, height: logoSize }); } catch (_) {}
+      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
       textX = margin + logoSize + 15;
       textW = contentW - logoSize - 15;
     }
@@ -835,7 +835,7 @@ export async function exportLaporanGuruPdf(req, res) {
     doc.font('Helvetica').fontSize(10).fillColor(GRAY)
       .text(`Tahun Pelajaran ${generalSettings.school_year}`, textX, headerY + 42, { width: textW, align: 'center' });
 
-    const lineY = headerY + logoSize + 10;
+    const lineY = headerY + logoSize + 12;
     doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
     doc.moveTo(margin, lineY + 2).lineTo(pageW - margin, lineY + 2).lineWidth(0.5).strokeColor(BLUE).stroke();
 
