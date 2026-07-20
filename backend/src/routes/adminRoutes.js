@@ -76,9 +76,11 @@ router.get('/qr/guru/download', requirePermission('qr.generate'), qrCtrl.downloa
 router.post('/laporan/siswa', requirePermission('attendance.view'), laporanCtrl.generateLaporanSiswaData);
 router.post('/laporan/siswa/xlsx', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaExcel);
 router.post('/laporan/siswa/pdf', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaPdf);
+router.post('/laporan/siswa/docx', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaWord);
 router.post('/laporan/guru', requirePermission('attendance.view'), laporanCtrl.generateLaporanGuruData);
 router.post('/laporan/guru/xlsx', requirePermission('attendance.view'), laporanCtrl.exportLaporanGuruExcel);
 router.post('/laporan/guru/pdf', requirePermission('attendance.view'), laporanCtrl.exportLaporanGuruPdf);
+router.post('/laporan/guru/docx', requirePermission('attendance.view'), laporanCtrl.exportLaporanGuruWord);
 
 // ── Petugas ──
 router.get('/petugas', requirePermission('petugas.manage'), petugasCtrl.listPetugas);

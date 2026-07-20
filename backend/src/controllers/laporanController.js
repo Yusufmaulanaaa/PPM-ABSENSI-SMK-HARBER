@@ -1,6 +1,7 @@
 import pool from '../config/db.js';
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle, ImageRun, VerticalAlign, PageOrientation } from 'docx';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -480,7 +481,7 @@ export async function exportLaporanSiswaPdf(req, res) {
     doc.text('_________________________', leftSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', leftSigX, y + 70, { width: sigW, align: 'center' });
 
-    doc.text(`${bulanLabel}`, rightSigX, y, { width: sigW, align: 'center' });
+    doc.text(`Tegal, ${bulanLabel}`, rightSigX, y, { width: sigW, align: 'center' });
     doc.text('Guru Kelas', rightSigX, y + 12, { width: sigW, align: 'center' });
     doc.text('_________________________', rightSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', rightSigX, y + 70, { width: sigW, align: 'center' });
@@ -816,7 +817,7 @@ export async function exportLaporanGuruPdf(req, res) {
     const hdr1Y = y;
 
     doc.rect(startX, hdr1Y, colNo + colNama, headerH).fill(BLUE);
-    doc.rect(startX, hdr1Y, colNo + col_nama, headerH).lineWidth(0.5).strokeColor(WHITE).stroke();
+    doc.rect(startX, hdr1Y, colNo + colNama, headerH).lineWidth(0.5).strokeColor(WHITE).stroke();
     doc.font('Helvetica-Bold').fontSize(8).fillColor(WHITE)
       .text('No / Nama', startX, hdr1Y + 9, { width: colNo + colNama, align: 'center' });
 
@@ -915,7 +916,7 @@ export async function exportLaporanGuruPdf(req, res) {
     doc.text('_________________________', leftSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', leftSigX, y + 70, { width: sigW, align: 'center' });
 
-    doc.text(`${bulanLabel}`, rightSigX, y, { width: sigW, align: 'center' });
+    doc.text(`Tegal, ${bulanLabel}`, rightSigX, y, { width: sigW, align: 'center' });
     doc.text('Guru', rightSigX, y + 12, { width: sigW, align: 'center' });
     doc.text('_________________________', rightSigX, y + 56, { width: sigW, align: 'center' });
     doc.text('NIP.', rightSigX, y + 70, { width: sigW, align: 'center' });
@@ -940,5 +941,288 @@ export async function exportLaporanGuruPdf(req, res) {
     if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'Gagal mengekspor laporan PDF.' });
     }
+  }
+}
+
+// ============================================================
+// WORD/DOCX HELPERS
+// ============================================================
+
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+const NO_BORDERS = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER };
+const THIN_BORDER = { style: BorderStyle.SINGLE, size: 1, color: 'AAAAAA' };
+const CELL_BORDERS = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
+
+function wordCell(text, opts = {}) {
+  const { bold, size, color, font, align, fill, colSpan, borders } = opts;
+  const cellOpts = {
+    borders: borders ?? CELL_BORDERS,
+    verticalAlign: VerticalAlign.CENTER,
+    children: [
+      new Paragraph({
+        alignment: align ?? AlignmentType.CENTER,
+        spacing: { before: 20, after: 20 },
+        children: [
+          new TextRun({
+            text: text ?? '',
+            bold: bold ?? false,
+            size: size ?? 18,
+            color: color ?? '333333',
+            font: font ?? 'Times New Roman',
+          }),
+        ],
+      }),
+    ],
+  };
+  if (fill) cellOpts.shading = { type: 'clear', fill };
+  if (colSpan) cellOpts.columnSpan = colSpan;
+  return new TableCell(cellOpts);
+}
+
+function wordCellMultiParagraph(paragraphs, opts = {}) {
+  const { fill, colSpan, borders } = opts;
+  const cellOpts = {
+    borders: borders ?? CELL_BORDERS,
+    verticalAlign: VerticalAlign.CENTER,
+    children: paragraphs,
+  };
+  if (fill) cellOpts.shading = { type: 'clear', fill };
+  if (colSpan) cellOpts.columnSpan = colSpan;
+  return new TableCell(cellOpts);
+}
+
+function buildWordDoc({ logoBuffer, schoolName, schoolYear, title, bulanLabel, kelasName, tanggalList, rows, rekap, personKey, nameKey }) {
+  const children = [];
+
+  const colNo = 500, colNama = 2400, colDay = 380, colSum = 400;
+  const colWidths = [colNo, colNama, ...tanggalList.map(() => colDay), colSum, colSum, colSum, colSum];
+  const totalW = colWidths.reduce((a, b) => a + b, 0);
+
+  const headerChildren = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 0 },
+      children: [new TextRun({ text: schoolName.toUpperCase(), bold: true, size: 32, color: '1a3a6b', font: 'Times New Roman' })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 0 },
+      children: [new TextRun({ text: title, bold: true, size: 26, color: '1a3a6b', font: 'Times New Roman' })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 0 },
+      children: [new TextRun({ text: `Tahun Pelajaran ${schoolYear}`, size: 22, font: 'Times New Roman' })],
+    }),
+  ];
+
+  if (logoBuffer) {
+    children.push(new Table({
+      columnWidths: [1800, totalW - 1800],
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 1800, type: WidthType.DXA },
+              borders: NO_BORDERS,
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new ImageRun({ data: logoBuffer, transformation: { width: 65, height: 65 }, type: 'jpg' })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: totalW - 1800, type: WidthType.DXA },
+              borders: NO_BORDERS,
+              verticalAlign: VerticalAlign.CENTER,
+              children: headerChildren,
+            }),
+          ],
+        }),
+      ],
+    }));
+  } else {
+    children.push(...headerChildren);
+  }
+
+  children.push(
+    new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '1a3a6b' } }, spacing: { after: 0 }, children: [] }),
+    new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '1a3a6b' } }, spacing: { after: 100 }, children: [] }),
+  );
+
+  children.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: `Bulan : ${bulanLabel}`, size: 20, font: 'Times New Roman' })] }));
+  if (kelasName) children.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: `Kelas : ${kelasName}`, size: 20, font: 'Times New Roman' })] }));
+  children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+
+  const BLUE = '1a3a6b', LIGHT_BLUE = 'e8eef7';
+  const attFill = { 1: 'e8f5e9', 2: 'fff9c4', 3: 'fff9c4', 4: 'ffebee' };
+  const attLabel = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
+  const sumColors = ['2e7d32', 'f9a825', 'f9a825', 'c62828'];
+
+  const hdr1 = new TableRow({
+    children: [
+      wordCell('No / Nama', { bold: true, color: 'FFFFFF', fill: BLUE, colSpan: 2 }),
+      wordCell('Hari / Tanggal', { bold: true, color: 'FFFFFF', fill: BLUE, colSpan: tanggalList.length }),
+      wordCell('Rekap', { bold: true, color: 'FFFFFF', fill: BLUE, colSpan: 4 }),
+    ],
+  });
+
+  const hdr2Cells = [
+    wordCell('', { fill: BLUE, colSpan: 2 }),
+    ...tanggalList.map((t) =>
+      wordCellMultiParagraph([
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 10, after: 0 }, children: [new TextRun({ text: t.hariSingkat, bold: true, size: 14, color: BLUE, font: 'Times New Roman' })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 10 }, children: [new TextRun({ text: String(t.tgl), bold: true, size: 16, color: BLUE, font: 'Times New Roman' })] }),
+      ], { fill: LIGHT_BLUE })
+    ),
+    ...Array(4).fill(wordCell('', { fill: BLUE })),
+  ];
+  const hdr2 = new TableRow({ children: hdr2Cells });
+
+  const hdr3Cells = [
+    wordCell('No', { bold: true, fill: 'D9E1F2' }),
+    wordCell('Nama', { bold: true, fill: 'D9E1F2' }),
+    ...tanggalList.map((t) => wordCell(String(t.tgl), { bold: true, size: 16, fill: 'D9E1F2' })),
+    ...['H', 'S', 'I', 'A'].map((l, i) => wordCell(l, { bold: true, color: l === 'H' ? 'FFFFFF' : '333333', fill: sumColors[i] })),
+  ];
+  const hdr3 = new TableRow({ children: hdr3Cells });
+
+  const dataRows = rows.map((r, i) => {
+    const rowBg = i % 2 === 0 ? 'FFFFFF' : 'F8F8F8';
+    const person = r.siswa || r.guru;
+    const cells = [
+      wordCell(String(i + 1), { size: 16, fill: rowBg }),
+      wordCell(person[nameKey], { size: 16, fill: rowBg, align: AlignmentType.LEFT }),
+      ...r.harian.map((h) => {
+        const bg = h.lewat ? rowBg : (attFill[h.id_kehadiran] || rowBg);
+        const lbl = (!h.lewat && h.id_kehadiran) ? attLabel[h.id_kehadiran] : '';
+        return wordCell(lbl, { size: 14, fill: bg });
+      }),
+      ...[r.hadir || 0, r.sakit || 0, r.izin || 0, r.alfa || 0].map((v) =>
+        wordCell(String(v), { size: 16, fill: rowBg })
+      ),
+    ];
+    return new TableRow({ children: cells });
+  });
+
+  children.push(new Table({
+    columnWidths: colWidths,
+    rows: [hdr1, hdr2, hdr3, ...dataRows],
+  }));
+
+  children.push(
+    new Paragraph({ spacing: { before: 200 }, children: [] }),
+    new Paragraph({ children: [new TextRun({ text: `Jumlah ${personKey === 'siswa' ? 'Siswa' : 'Guru'} : ${rekap.total}`, bold: true, size: 20, color: '1a3a6b', font: 'Times New Roman' })] }),
+    new Paragraph({ children: [new TextRun({ text: `Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, size: 20, font: 'Times New Roman' })] }),
+  );
+
+  const sigW = Math.floor(totalW / 2);
+  children.push(
+    new Paragraph({ spacing: { before: 400 }, children: [] }),
+    new Table({
+      columnWidths: [sigW, sigW],
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: NO_BORDERS,
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Mengetahui,', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Kepala Sekolah', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ spacing: { before: 600 }, children: [] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '_________________________', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NIP.', size: 20, font: 'Times New Roman' })] }),
+              ],
+            }),
+            new TableCell({
+              borders: NO_BORDERS,
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Tegal, ${bulanLabel}`, size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: personKey === 'siswa' ? 'Guru Kelas' : 'Guru', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ spacing: { before: 600 }, children: [] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '_________________________', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NIP.', size: 20, font: 'Times New Roman' })] }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  );
+
+  return new Document({
+    sections: [{
+      properties: {
+        page: {
+          size: { orientation: PageOrientation.LANDSCAPE },
+          margin: { top: 567, right: 567, bottom: 567, left: 567 },
+        },
+      },
+      children,
+    }],
+  });
+}
+
+export async function exportLaporanSiswaWord(req, res) {
+  try {
+    const { kelas: idKelas, bulan } = req.body;
+    let payload;
+    await generateLaporanSiswaData({ body: { kelas: idKelas, bulan } }, { json: (p) => { payload = p; }, status: () => ({ json: (p) => { payload = p; } }) });
+    if (!payload?.success) return res.status(404).json({ success: false, message: 'Data tidak ditemukan.' });
+
+    const { tanggalList, bulanLabel, kelas, rows, rekap, generalSettings } = payload.data;
+    const filename = `laporan_absen_${kelas.kelas.replace(/\s+/g, '_')}_${bulanLabel.replace(/\s+/g, '-')}.docx`;
+
+    const logoPath = getLogoPath(generalSettings.logo);
+    let logoBuffer = null;
+    if (logoPath) try { logoBuffer = fs.readFileSync(logoPath); } catch (_) {}
+
+    const doc = buildWordDoc({
+      logoBuffer, schoolName: generalSettings.school_name, schoolYear: generalSettings.school_year,
+      title: 'DAFTAR HADIR SISWA', bulanLabel, kelasName: kelas.kelas,
+      tanggalList, rows, rekap, personKey: 'siswa', nameKey: 'nama_siswa',
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('exportLaporanSiswaWord error:', err);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Gagal mengekspor laporan Word.' });
+  }
+}
+
+export async function exportLaporanGuruWord(req, res) {
+  try {
+    const { bulan } = req.body;
+    let payload;
+    await generateLaporanGuruData({ body: { bulan } }, { json: (p) => { payload = p; }, status: () => ({ json: (p) => { payload = p; } }) });
+    if (!payload?.success) return res.status(404).json({ success: false, message: 'Data tidak ditemukan.' });
+
+    const { tanggalList, bulanLabel, rows, rekap, generalSettings } = payload.data;
+    const filename = `laporan_absen_guru_${bulanLabel.replace(/\s+/g, '-')}.docx`;
+
+    const logoPath = getLogoPath(generalSettings.logo);
+    let logoBuffer = null;
+    if (logoPath) try { logoBuffer = fs.readFileSync(logoPath); } catch (_) {}
+
+    const doc = buildWordDoc({
+      logoBuffer, schoolName: generalSettings.school_name, schoolYear: generalSettings.school_year,
+      title: 'DAFTAR HADIR GURU', bulanLabel, kelasName: null,
+      tanggalList, rows, rekap, personKey: 'guru', nameKey: 'nama_guru',
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('exportLaporanGuruWord error:', err);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Gagal mengekspor laporan Word.' });
   }
 }

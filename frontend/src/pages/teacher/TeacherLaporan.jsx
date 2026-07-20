@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { FileSpreadsheet, FileDown } from 'lucide-react';
+import { FileSpreadsheet, FileDown, FileText } from 'lucide-react';
 import api, { UPLOADS_BASE_URL } from '../../api/client';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
@@ -99,7 +99,7 @@ export default function TeacherLaporan() {
         <Card
           title={`Daftar Hadir Siswa — ${report.bulanLabel}`}
           headerColor="azure"
-          actions={<><Button variant="outline" loading={exporting} onClick={() => handleExport('xlsx')}><FileSpreadsheet size={15} style={{ marginRight: 6 }} />Export Excel</Button><Button variant="info" loading={exporting} onClick={() => handleExport('pdf')}><FileDown size={15} style={{ marginRight: 6 }} />Export PDF</Button></>}
+          actions={<><Button variant="outline" loading={exporting} onClick={() => handleExport('xlsx')}><FileSpreadsheet size={15} style={{ marginRight: 6 }} />Export Excel</Button><Button variant="outline" loading={exporting} onClick={() => handleExport('docx')}><FileText size={15} style={{ marginRight: 6 }} />Export Word</Button><Button variant="info" loading={exporting} onClick={() => handleExport('pdf')}><FileDown size={15} style={{ marginRight: 6 }} />Export PDF</Button></>}
         >
           <div className="table-wrapper">
             <table className="ui-table laporan-table">
