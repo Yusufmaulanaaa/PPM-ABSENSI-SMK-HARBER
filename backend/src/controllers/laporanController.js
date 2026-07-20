@@ -337,7 +337,12 @@ export async function exportLaporanSiswaPdf(req, res) {
 
     const { tanggalList, bulanLabel, kelas, rows, rekap, generalSettings } = payload.data;
     const filename = `laporan_absen_${kelas.kelas.replace(/\s+/g, '_')}_${bulanLabel.replace(/\s+/g, '-')}.pdf`;
-    const logoPath = getLogoPath(generalSettings.logo);
+
+    let logoBuffer = null;
+    try {
+      const lp = getLogoPath(generalSettings.logo);
+      if (lp) logoBuffer = fs.readFileSync(lp);
+    } catch (_) {}
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
 
@@ -365,10 +370,12 @@ export async function exportLaporanSiswaPdf(req, res) {
     let textX = margin;
     let textW = contentW;
 
-    if (logoPath) {
-      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
-      textX = margin + logoSize + 15;
-      textW = contentW - logoSize - 15;
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, margin, headerY, { width: logoSize });
+        textX = margin + logoSize + 15;
+        textW = contentW - logoSize - 15;
+      } catch (_) {}
     }
 
     doc.font('Helvetica-Bold').fontSize(18).fillColor(BLUE)
@@ -525,7 +532,7 @@ export async function exportLaporanSiswaPdf(req, res) {
   } catch (err) {
     console.error('exportLaporanSiswaPdf error:', err);
     if (!res.headersSent) {
-      res.status(500).json({ success: false, message: 'Gagal mengekspor laporan PDF.' });
+      res.status(500).json({ success: false, message: `Gagal mengekspor laporan PDF: ${err.message}` });
     }
   }
 }
@@ -794,7 +801,12 @@ export async function exportLaporanGuruPdf(req, res) {
 
     const { tanggalList, bulanLabel, rows, rekap, generalSettings } = payload.data;
     const filename = `laporan_absen_guru_${bulanLabel.replace(/\s+/g, '-')}.pdf`;
-    const logoPath = getLogoPath(generalSettings.logo);
+
+    let logoBuffer = null;
+    try {
+      const lp = getLogoPath(generalSettings.logo);
+      if (lp) logoBuffer = fs.readFileSync(lp);
+    } catch (_) {}
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
 
@@ -822,10 +834,12 @@ export async function exportLaporanGuruPdf(req, res) {
     let textX = margin;
     let textW = contentW;
 
-    if (logoPath) {
-      try { doc.image(logoPath, margin, headerY, { width: logoSize }); } catch (_) {}
-      textX = margin + logoSize + 15;
-      textW = contentW - logoSize - 15;
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, margin, headerY, { width: logoSize });
+        textX = margin + logoSize + 15;
+        textW = contentW - logoSize - 15;
+      } catch (_) {}
     }
 
     doc.font('Helvetica-Bold').fontSize(18).fillColor(BLUE)
@@ -981,7 +995,7 @@ export async function exportLaporanGuruPdf(req, res) {
   } catch (err) {
     console.error('exportLaporanGuruPdf error:', err);
     if (!res.headersSent) {
-      res.status(500).json({ success: false, message: 'Gagal mengekspor laporan PDF.' });
+      res.status(500).json({ success: false, message: `Gagal mengekspor laporan PDF: ${err.message}` });
     }
   }
 }
