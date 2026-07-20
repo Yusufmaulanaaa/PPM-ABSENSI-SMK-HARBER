@@ -22,7 +22,8 @@ const allowedOrigins = (process.env.FRONTEND_URL || '*')
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (allowedOrigins.includes('*') || !origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes('*') || !origin || allowedOrigins.includes(origin)
+      || /\.vercel\.app$/.test(origin) || /\.railway\.app$/.test(origin)) {
       callback(null, origin || '*');
     } else {
       callback(new Error('Origin tidak diizinkan: ' + origin));
