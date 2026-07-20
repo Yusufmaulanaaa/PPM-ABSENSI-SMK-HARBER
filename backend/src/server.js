@@ -14,21 +14,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ── CORS — support multiple origin dipisah koma di env FRONTEND_URL ──
-const allowedOrigins = (process.env.FRONTEND_URL || '*')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
-
+// ── CORS — allow all origins (auth handled by JWT) ──
 app.use(cors({
-  origin: (origin, callback) => {
-    if (allowedOrigins.includes('*') || !origin || allowedOrigins.includes(origin)
-      || /\.vercel\.app$/.test(origin) || /\.railway\.app$/.test(origin)) {
-      callback(null, origin || '*');
-    } else {
-      callback(new Error('Origin tidak diizinkan: ' + origin));
-    }
-  },
+  origin: true,
   credentials: true,
 }));
 
