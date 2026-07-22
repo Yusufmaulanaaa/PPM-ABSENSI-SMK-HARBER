@@ -33,7 +33,18 @@ app.use('/uploads', express.static(uploadsRoot));
 
 // ── Health check ──
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'Absensi Sekolah API berjalan dengan baik.', timestamp: new Date().toISOString(), version: '5-laporan-fix' });
+  res.json({ success: true, message: 'Absensi Sekolah API berjalan dengan baik.', timestamp: new Date().toISOString(), version: '6-pdf-refactor' });
+});
+
+// ── Test PDF (no auth, for debugging) ──
+app.get('/api/test-pdf', async (req, res) => {
+  try {
+    const { testPdfEndpoint } = await import('./controllers/laporanController.js');
+    await testPdfEndpoint(req, res);
+  } catch (err) {
+    console.error('Test PDF error:', err);
+    res.status(500).json({ success: false, message: err.message, stack: err.stack });
+  }
 });
 
 // ── Routes ──
