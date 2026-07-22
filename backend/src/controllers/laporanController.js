@@ -143,7 +143,7 @@ async function fetchGuruReportData(bulan) {
 
 function buildPdfBuffer({ logoBuffer, schoolName, schoolYear, title, bulanLabel, kelasName, tanggalList, rows, rekap, personLabel, nameKey }) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 35, bufferPages: true });
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40, bufferPages: true });
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -152,89 +152,132 @@ function buildPdfBuffer({ logoBuffer, schoolName, schoolYear, title, bulanLabel,
     try {
       const pageW = doc.page.width;
       const pageH = doc.page.height;
-      const margin = 35;
-      const contentW = pageW - margin * 2;
-      const BLUE = '#1a3a6b', DARK = '#222222', LIGHT_BLUE = '#dde4f0', WHITE = '#ffffff', GRAY = '#888888', LIGHT_GRAY = '#f4f4f4';
+      const M = 40;
+      const contentW = pageW - M * 2;
+      const NAVY = '#0d2137';
+      const BLUE = '#1a3a6b';
+      const DARK = '#1a1a1a';
+      const MID = '#444444';
+      const LIGHT_BLUE = '#e4eaf3';
+      const WHITE = '#ffffff';
+      const LIGHT_GRAY = '#f7f8fa';
+      const BORDER = '#b0b8c4';
       let currentPage = 1;
 
       function drawFooter() {
         doc.save();
-        doc.font('Helvetica').fontSize(7).fillColor(GRAY);
-        doc.text(`Halaman ${currentPage}`, margin, pageH - 22, { width: contentW, align: 'center' });
+        doc.moveTo(M, pageH - 28).lineTo(pageW - M, pageH - 28).lineWidth(0.5).strokeColor('#cccccc').stroke();
+        doc.font('Helvetica').fontSize(7).fillColor('#999999');
+        doc.text(`Halaman ${currentPage}`, M, pageH - 24, { width: contentW, align: 'center' });
         doc.restore();
       }
 
       function drawHeader() {
-        const headerY = margin;
-        const logoSize = 60;
-        let textX = margin;
-        let textW = contentW;
+        const hy = M;
+        const logoSize = 56;
+        let tx = M;
+        let tw = contentW;
         if (logoBuffer) {
           try {
-            doc.image(logoBuffer, margin, headerY, { width: logoSize, height: logoSize });
-            textX = margin + logoSize + 12;
-            textW = contentW - logoSize - 12;
+            doc.image(logoBuffer, M, hy, { width: logoSize, height: logoSize });
+            tx = M + logoSize + 16;
+            tw = contentW - logoSize - 16;
           } catch (_) {}
         }
-        doc.font('Helvetica-Bold').fontSize(15).fillColor(BLUE)
-          .text((schoolName || '').toUpperCase(), textX, headerY, { width: textW, align: 'center' });
-        doc.font('Helvetica').fontSize(8).fillColor(DARK)
-          .text('Sistem Absensi Sekolah', textX, headerY + 18, { width: textW, align: 'center' });
-        const lineY = headerY + logoSize + 6;
-        doc.moveTo(margin, lineY).lineTo(pageW - margin, lineY).lineWidth(2).strokeColor(BLUE).stroke();
-        doc.moveTo(margin, lineY + 1.5).lineTo(pageW - margin, lineY + 1.5).lineWidth(0.5).strokeColor(BLUE).stroke();
-        return lineY + 8;
+        doc.font('Helvetica-Bold').fontSize(16).fillColor(NAVY)
+          .text((schoolName || '').toUpperCase(), tx, hy + 2, { width: tw, align: 'center' });
+        doc.font('Helvetica').fontSize(8.5).fillColor(MID)
+          .text('Sistem Informasi Absensi Sekolah', tx, hy + 22, { width: tw, align: 'center' });
+        const ly = hy + logoSize + 10;
+        doc.moveTo(M, ly).lineTo(pageW - M, ly).lineWidth(2.5).strokeColor(NAVY).stroke();
+        doc.moveTo(M, ly + 3).lineTo(pageW - M, ly + 3).lineWidth(0.6).strokeColor(BLUE).stroke();
+        return ly + 14;
       }
 
       let y = drawHeader();
-      doc.font('Helvetica-Bold').fontSize(12).fillColor(DARK).text(title, margin, y, { width: contentW, align: 'center' });
-      y += 18;
-      doc.font('Helvetica').fontSize(10).fillColor(GRAY).text(`Tahun Pelajaran ${schoolYear || ''}`, margin, y, { width: contentW, align: 'center' });
-      y += 20;
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK);
-      doc.text(`Bulan  : ${bulanLabel}`, margin, y);
-      if (kelasName) { doc.text(`Kelas  : ${kelasName}`, margin, y + 14); y += 14; }
-      y += 20;
 
-      const colNo = 26, colNama = 105, colDay = 18, colSum = 22;
+      doc.font('Helvetica-Bold').fontSize(13).fillColor(DARK)
+        .text(title, M, y, { width: contentW, align: 'center' });
+      y += 20;
+      doc.font('Helvetica').fontSize(9.5).fillColor(MID)
+        .text(`Tahun Pelajaran ${schoolYear || ''}`, M, y, { width: contentW, align: 'center' });
+      y += 24;
+
+      const infoX = M + 4;
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK);
+      doc.text('Bulan', infoX, y, { width: 50 });
+      doc.text(':', infoX + 50, y);
+      doc.font('Helvetica').fontSize(9).fillColor(DARK).text(bulanLabel, infoX + 60, y);
+      if (kelasName) {
+        y += 15;
+        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK);
+        doc.text('Kelas', infoX, y, { width: 50 });
+        doc.text(':', infoX + 50, y);
+        doc.font('Helvetica').fontSize(9).fillColor(DARK).text(kelasName, infoX + 60, y);
+      }
+      y += 24;
+
+      const colNo = 28, colNama = 110, colDay = 19, colSum = 24;
       const tableW = colNo + colNama + tanggalList.length * colDay + 4 * colSum;
-      const startX = margin + Math.max(0, (contentW - tableW) / 2);
-      const rowH = 17, headerH = 26;
+      const startX = M + Math.max(0, (contentW - tableW) / 2);
+      const rowH = 18, headerH = 30;
 
       function checkPage(needH) {
-        if (y + needH > pageH - margin - 40) { drawFooter(); doc.addPage(); currentPage++; y = drawHeader(); }
+        if (y + needH > pageH - M - 50) { drawFooter(); doc.addPage(); currentPage++; y = drawHeader(); }
       }
 
       checkPage(headerH + rowH);
-      const hdr1Y = y;
-      doc.rect(startX, hdr1Y, colNo + colNama, headerH).fill(BLUE).lineWidth(0.5).strokeColor(BLUE).stroke();
-      doc.font('Helvetica-Bold').fontSize(7).fillColor(WHITE).text('No / Nama', startX, hdr1Y + 8, { width: colNo + colNama, align: 'center' });
+      const h1Y = y;
+
+      doc.rect(startX, h1Y, colNo + colNama, headerH).fill(NAVY).lineWidth(0.6).strokeColor(NAVY).stroke();
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor(WHITE)
+        .text('No', startX, h1Y + 5, { width: colNo, align: 'center' });
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor(WHITE)
+        .text('Nama Siswa', startX + colNo, h1Y + 5, { width: colNama, align: 'center' });
+
       const htX = startX + colNo + colNama;
       const htW = tanggalList.length * colDay;
-      doc.rect(htX, hdr1Y, htW, headerH / 2).fill(BLUE).lineWidth(0.5).strokeColor(WHITE).stroke();
-      doc.font('Helvetica-Bold').fontSize(6).fillColor(WHITE).text('Hari / Tanggal', htX, hdr1Y + 2, { width: htW, align: 'center' });
+      doc.rect(htX, h1Y, htW, headerH / 2).fill(NAVY).lineWidth(0.6).strokeColor(NAVY).stroke();
+      doc.font('Helvetica-Bold').fontSize(6.5).fillColor(WHITE)
+        .text('Hari / Tanggal', htX, h1Y + 3, { width: htW, align: 'center' });
+
       const rekapX = htX + htW;
       const rekapW = 4 * colSum;
-      doc.rect(rekapX, hdr1Y, rekapW, headerH / 2).fill(BLUE).lineWidth(0.5).strokeColor(WHITE).stroke();
-      doc.font('Helvetica-Bold').fontSize(6).fillColor(WHITE).text('Rekap', rekapX, hdr1Y + 2, { width: rekapW, align: 'center' });
+      doc.rect(rekapX, h1Y, rekapW, headerH / 2).fill(NAVY).lineWidth(0.6).strokeColor(NAVY).stroke();
+      doc.font('Helvetica-Bold').fontSize(6.5).fillColor(WHITE)
+        .text('Rekapitulasi', rekapX, h1Y + 3, { width: rekapW, align: 'center' });
 
-      const hdr2Y = hdr1Y + headerH / 2;
+      const h2Y = h1Y + headerH / 2;
       tanggalList.forEach((t, idx) => {
         const cx = htX + idx * colDay;
-        doc.rect(cx, hdr2Y, colDay, headerH / 2).fill(LIGHT_BLUE).lineWidth(0.5).strokeColor(BLUE).stroke();
-        doc.font('Helvetica-Bold').fontSize(5).fillColor(BLUE).text(t.hariSingkat, cx, hdr2Y + 1, { width: colDay, align: 'center' });
-        doc.font('Helvetica-Bold').fontSize(6).fillColor(BLUE).text(String(t.tgl), cx, hdr2Y + 8, { width: colDay, align: 'center' });
-      });
-      const sumColors = ['#2e7d32', '#e8a800', '#e8a800', '#c62828'];
-      ['H', 'S', 'I', 'A'].forEach((label, idx) => {
-        const cx = rekapX + idx * colSum;
-        doc.rect(cx, hdr2Y, colSum, headerH / 2).fill(sumColors[idx]).lineWidth(0.5).strokeColor(WHITE).stroke();
-        doc.font('Helvetica-Bold').fontSize(7).fillColor(WHITE).text(label, cx, hdr2Y + 3, { width: colSum, align: 'center' });
+        doc.rect(cx, h2Y, colDay, headerH / 2).fill(LIGHT_BLUE).lineWidth(0.5).strokeColor(BORDER).stroke();
+        doc.font('Helvetica-Bold').fontSize(5.5).fillColor(BLUE)
+          .text(t.hariSingkat, cx, h2Y + 1, { width: colDay, align: 'center' });
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(BLUE)
+          .text(String(t.tgl), cx, h2Y + 9, { width: colDay, align: 'center' });
       });
 
-      y = hdr1Y + headerH;
-      const attColors = { 1: '#e8f5e9', 2: '#fff9c4', 3: '#fff9c4', 4: '#ffebee' };
-      const attLabels = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
+      const sumDefs = [
+        { label: 'H', color: '#1b7a2b', bg: '#d4edda' },
+        { label: 'S', color: '#856404', bg: '#fff3cd' },
+        { label: 'I', color: '#0c5460', bg: '#d1ecf1' },
+        { label: 'A', color: '#a71d2a', bg: '#f8d7da' },
+      ];
+      sumDefs.forEach((s, idx) => {
+        const cx = rekapX + idx * colSum;
+        doc.rect(cx, h2Y, colSum, headerH / 2).fill(s.bg).lineWidth(0.5).strokeColor(BORDER).stroke();
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(s.color)
+          .text(s.label, cx, h2Y + 4, { width: colSum, align: 'center' });
+      });
+
+      y = h1Y + headerH;
+
+      const attDefs = {
+        1: { label: 'H', bg: '#e8f5e9', color: '#2e7d32' },
+        2: { label: 'S', bg: '#fff9c4', color: '#f57f17' },
+        3: { label: 'I', bg: '#e0f2f1', color: '#00695c' },
+        4: { label: 'A', bg: '#ffebee', color: '#c62828' },
+      };
 
       for (const [i, r] of rows.entries()) {
         checkPage(rowH);
@@ -242,54 +285,68 @@ function buildPdfBuffer({ logoBuffer, schoolName, schoolYear, title, bulanLabel,
         const rowBg = i % 2 === 0 ? WHITE : LIGHT_GRAY;
         const person = r.siswa || r.guru;
 
-        doc.rect(startX, ry, colNo, rowH).fill(rowBg).lineWidth(0.3).strokeColor('#d0d0d0').stroke();
-        doc.font('Helvetica').fontSize(6).fillColor(DARK).text(String(i + 1), startX, ry + 4, { width: colNo, align: 'center' });
-        doc.rect(startX + colNo, ry, colNama, rowH).fill(rowBg).lineWidth(0.3).strokeColor('#d0d0d0').stroke();
-        doc.font('Helvetica').fontSize(6).fillColor(DARK).text(person[nameKey], startX + colNo + 3, ry + 4, { width: colNama - 6, align: 'left' });
+        doc.rect(startX, ry, colNo, rowH).fill(rowBg).lineWidth(0.3).strokeColor(BORDER).stroke();
+        doc.font('Helvetica').fontSize(7).fillColor(DARK)
+          .text(String(i + 1), startX, ry + 4.5, { width: colNo, align: 'center' });
+
+        doc.rect(startX + colNo, ry, colNama, rowH).fill(rowBg).lineWidth(0.3).strokeColor(BORDER).stroke();
+        doc.font('Helvetica').fontSize(7).fillColor(DARK)
+          .text(person[nameKey], startX + colNo + 4, ry + 4.5, { width: colNama - 8, align: 'left' });
 
         r.harian.forEach((h, idx) => {
           const cx = htX + idx * colDay;
-          const cellBg = h.lewat ? rowBg : (attColors[h.id_kehadiran] || rowBg);
-          doc.rect(cx, ry, colDay, rowH).fill(cellBg).lineWidth(0.3).strokeColor('#d0d0d0').stroke();
-          if (!h.lewat && h.id_kehadiran) doc.font('Helvetica').fontSize(5.5).fillColor(DARK).text(attLabels[h.id_kehadiran], cx, ry + 4, { width: colDay, align: 'center' });
+          const cellBg = h.lewat ? rowBg : ((attDefs[h.id_kehadiran] || {}).bg || rowBg);
+          doc.rect(cx, ry, colDay, rowH).fill(cellBg).lineWidth(0.3).strokeColor(BORDER).stroke();
+          if (!h.lewat && h.id_kehadiran) {
+            const ad = attDefs[h.id_kehadiran];
+            doc.font('Helvetica-Bold').fontSize(6.5).fillColor(ad.color)
+              .text(ad.label, cx, ry + 4.5, { width: colDay, align: 'center' });
+          }
         });
 
         [r.hadir || 0, r.sakit || 0, r.izin || 0, r.alfa || 0].forEach((val, idx) => {
           const cx = rekapX + idx * colSum;
-          doc.rect(cx, ry, colSum, rowH).fill(rowBg).lineWidth(0.3).strokeColor('#d0d0d0').stroke();
-          doc.font('Helvetica').fontSize(6).fillColor(DARK).text(String(val), cx, ry + 4, { width: colSum, align: 'center' });
+          doc.rect(cx, ry, colSum, rowH).fill(rowBg).lineWidth(0.3).strokeColor(BORDER).stroke();
+          doc.font('Helvetica-Bold').fontSize(7).fillColor(DARK)
+            .text(String(val), cx, ry + 4.5, { width: colSum, align: 'center' });
         });
         y += rowH;
       }
 
-      y += 12;
-      checkPage(80);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(BLUE).text(`Jumlah ${personLabel} : ${rekap.total}`, margin, y);
-      doc.font('Helvetica').fontSize(9).fillColor(DARK).text(`Laki-laki : ${rekap.laki}     Perempuan : ${rekap.perempuan}`, margin, y + 14);
+      y += 8;
+      doc.moveTo(M, y).lineTo(pageW - M, y).lineWidth(0.5).strokeColor(BORDER).stroke();
+      y += 10;
+      checkPage(70);
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor(NAVY)
+        .text(`Jumlah ${personLabel} : ${rekap.total}`, M + 4, y);
+      doc.font('Helvetica').fontSize(9).fillColor(MID)
+        .text(`Laki-laki : ${rekap.laki}          Perempuan : ${rekap.perempuan}`, M + 4, y + 16);
 
-      y += 45;
-      checkPage(100);
-      const sigW = 220, leftSigX = margin + 20, rightSigX = pageW - margin - sigW - 20;
+      y += 50;
+      checkPage(110);
+      const sigW = 230, lx = M + 20, rx = pageW - M - sigW - 20;
       const bp = bulanLabel.split(' ');
       const tglCetak = new Date().getDate();
 
       doc.font('Helvetica').fontSize(9).fillColor(DARK);
-      doc.text('Mengetahui,', leftSigX, y, { width: sigW, align: 'center' });
-      doc.text('Kepala Sekolah', leftSigX, y + 13, { width: sigW, align: 'center' });
-      doc.text('', leftSigX, y + 26, { width: sigW, align: 'center' });
-      doc.text('', leftSigX, y + 39, { width: sigW, align: 'center' });
-      doc.text('', leftSigX, y + 52, { width: sigW, align: 'center' });
-      doc.text('_________________________', leftSigX, y + 65, { width: sigW, align: 'center' });
-      doc.fontSize(8).text('NIP.', leftSigX, y + 78, { width: sigW, align: 'center' });
+      doc.text('Mengetahui,', lx, y, { width: sigW, align: 'center' });
+      doc.text('Kepala Sekolah', lx, y + 14, { width: sigW, align: 'center' });
+      doc.text('', lx, y + 28, { width: sigW, align: 'center' });
+      doc.text('', lx, y + 42, { width: sigW, align: 'center' });
+      doc.text('', lx, y + 56, { width: sigW, align: 'center' });
+      doc.font('Helvetica').fontSize(9).fillColor(DARK)
+        .text('_________________________', lx, y + 70, { width: sigW, align: 'center' });
+      doc.font('Helvetica').fontSize(8).fillColor(MID).text('NIP.', lx, y + 84, { width: sigW, align: 'center' });
 
       doc.font('Helvetica').fontSize(9).fillColor(DARK);
-      doc.text(`Tegal, ${tglCetak} ${bp[0] || ''} ${bp[1] || ''}`, rightSigX, y, { width: sigW, align: 'center' });
-      doc.text(personLabel === 'Siswa' ? 'Guru Kelas' : 'Guru', rightSigX, y + 13, { width: sigW, align: 'center' });
-      doc.text('', rightSigX, y + 26, { width: sigW, align: 'center' });
-      doc.text('', rightSigX, y + 39, { width: sigW, align: 'center' });
-      doc.text('', rightSigX, y + 52, { width: sigW, align: 'center' });
-      doc.text('_________________________', rightSigX, y + 65, { width: sigW, align: 'center' });
-      doc.fontSize(8).text('NIP.', rightSigX, y + 78, { width: sigW, align: 'center' });
+      doc.text(`Tegal, ${tglCetak} ${bp[0] || ''} ${bp[1] || ''}`, rx, y, { width: sigW, align: 'center' });
+      doc.text(personLabel === 'Siswa' ? 'Guru Kelas' : 'Guru', rx, y + 14, { width: sigW, align: 'center' });
+      doc.text('', rx, y + 28, { width: sigW, align: 'center' });
+      doc.text('', rx, y + 42, { width: sigW, align: 'center' });
+      doc.text('', rx, y + 56, { width: sigW, align: 'center' });
+      doc.font('Helvetica').fontSize(9).fillColor(DARK)
+        .text('_________________________', rx, y + 70, { width: sigW, align: 'center' });
+      doc.font('Helvetica').fontSize(8).fillColor(MID).text('NIP.', rx, y + 84, { width: sigW, align: 'center' });
 
       drawFooter();
       doc.end();
@@ -369,19 +426,21 @@ export async function exportLaporanSiswaExcel(req, res) {
       }
     }
 
-    const HEADER_BG = 'FF1A3A6B';
+    const HEADER_BG = 'FF0D2137';
     const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
     const thinBorder = {
-      top: { style: 'thin' }, left: { style: 'thin' },
-      bottom: { style: 'thin' }, right: { style: 'thin' },
+      top: { style: 'thin', color: { argb: 'FFB0B8C4' } },
+      left: { style: 'thin', color: { argb: 'FFB0B8C4' } },
+      bottom: { style: 'thin', color: { argb: 'FFB0B8C4' } },
+      right: { style: 'thin', color: { argb: 'FFB0B8C4' } },
     };
     const centerAlign = { horizontal: 'center', vertical: 'middle' };
 
     const colorMap = {
-      1: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
-      2: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
-      3: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
-      4: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B6B' } },
+      1: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } },
+      2: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } },
+      3: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1ECF1' } },
+      4: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } },
     };
     const labelMap = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
 
@@ -646,19 +705,21 @@ export async function exportLaporanGuruExcel(req, res) {
       }
     }
 
-    const HEADER_BG = 'FF1A3A6B';
+    const HEADER_BG = 'FF0D2137';
     const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
     const thinBorder = {
-      top: { style: 'thin' }, left: { style: 'thin' },
-      bottom: { style: 'thin' }, right: { style: 'thin' },
+      top: { style: 'thin', color: { argb: 'FFB0B8C4' } },
+      left: { style: 'thin', color: { argb: 'FFB0B8C4' } },
+      bottom: { style: 'thin', color: { argb: 'FFB0B8C4' } },
+      right: { style: 'thin', color: { argb: 'FFB0B8C4' } },
     };
     const centerAlign = { horizontal: 'center', vertical: 'middle' };
 
     const colorMap = {
-      1: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
-      2: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
-      3: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
-      4: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B6B' } },
+      1: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4EDDA' } },
+      2: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } },
+      3: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1ECF1' } },
+      4: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8D7DA' } },
     };
     const labelMap = { 1: 'H', 2: 'S', 3: 'I', 4: 'A' };
 
