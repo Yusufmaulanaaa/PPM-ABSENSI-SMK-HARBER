@@ -73,6 +73,7 @@ router.get('/qr/guru/:id/download', requirePermission('qr.generate'), qrCtrl.dow
 router.get('/qr/guru/download', requirePermission('qr.generate'), qrCtrl.downloadAllQrGuru);
 
 // ── Laporan ──
+router.get('/laporan/test-pdf', laporanCtrl.testPdfEndpoint);
 router.post('/laporan/siswa', requirePermission('attendance.view'), laporanCtrl.generateLaporanSiswaData);
 router.post('/laporan/siswa/xlsx', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaExcel);
 router.post('/laporan/siswa/pdf', requirePermission('attendance.view'), laporanCtrl.exportLaporanSiswaPdf);
